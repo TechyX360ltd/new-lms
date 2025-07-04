@@ -44,7 +44,8 @@ export function UserManagement() {
   }
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const fullName = `${user.firstName} ${user.lastName}`;
+    const matchesSearch = fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = selectedRole === 'all' || user.role === selectedRole;
     
@@ -124,11 +125,11 @@ export function UserManagement() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                         <span className="text-white font-medium text-sm">
-                          {user.name.split(' ').map(n => n[0]).join('')}
+                          {user.firstName[0]}{user.lastName[0]}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <p className="font-medium text-gray-900">{user.firstName} {user.lastName}</p>
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                     </div>

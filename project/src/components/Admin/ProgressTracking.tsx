@@ -353,12 +353,12 @@ export function ProgressTracking() {
                       }
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                         <span className="text-white font-medium text-sm">
-                          {user.name.split(' ').map(n => n[0]).join('')}
+                          {user.firstName[0]}{user.lastName[0]}
                         </span>
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{user.firstName} {user.lastName}</h3>
                       <p className="text-sm text-gray-500">{user.email}</p>
                     </div>
                   </div>

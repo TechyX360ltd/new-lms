@@ -1,67 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from './ToastContext';
 
 interface LoginFormProps {
   onToggleForm: () => void;
+  formData: any;
+  setFormData: any;
+  error: string;
+  setError: any;
+  showPassword: boolean;
+  setShowPassword: any;
 }
 
-export function LoginForm({ onToggleForm }: LoginFormProps) {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+export function LoginForm({
+  onToggleForm,
+  formData,
+  setFormData,
+  error,
+  setError,
+  showPassword,
+  setShowPassword
+}: LoginFormProps) {
   const { login, isLoading, isSupabaseConnected } = useAuth();
-  const [showEmailConfirmToast, setShowEmailConfirmToast] = useState(false);
-  const [showErrorToast, setShowErrorToast] = useState(false);
-  const [errorToastMessage, setErrorToastMessage] = useState('');
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (localStorage.getItem('showEmailConfirmToast')) {
-      setShowEmailConfirmToast(true);
+      showToast('Please check your email and confirm your account to continue.', 'confirmation', 20000);
       localStorage.removeItem('showEmailConfirmToast');
-      const timer = setTimeout(() => setShowEmailConfirmToast(false), 120000); // 120 seconds
-      return () => clearTimeout(timer);
     }
-  }, []);
-
-  // Show error toast if sessionStorage has a message (persists across remounts)
-  useEffect(() => {
-    const msg = sessionStorage.getItem('loginErrorToastMessage');
-    if (msg) {
-      setErrorToastMessage(msg);
-      setShowErrorToast(true);
-      setTimeout(() => setShowErrorToast(false), 8000);
-      sessionStorage.removeItem('loginErrorToastMessage');
-    }
-  }, []);
+  }, [showToast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
       await login(formData.email, formData.password);
+      showToast('Login successful!', 'success', 4000);
     } catch (err: any) {
-      console.log('Login error object:', err);
       let msg = 'Login failed. Please try again.';
+      let details = '';
+      let type = 'error';
       if (err?.message?.toLowerCase().includes('invalid login credentials')) {
-        msg = 'Invalid email or password. Please try again.';
+        details = 'Invalid email or password.';
       } else if (err?.message?.toLowerCase().includes('email not confirmed') || err?.message?.toLowerCase().includes('user not confirmed')) {
-        msg = 'Please confirm your email before logging in.';
+        msg = 'Login failed.';
+        details = 'Please confirm your email before logging in.';
+        type = 'confirmation';
       }
-      setError(msg);
-      setErrorToastMessage(msg);
-      setShowErrorToast(true);
-      setTimeout(() => setShowErrorToast(false), 8000);
-      // Persist error toast in sessionStorage so it survives remounts
-      sessionStorage.setItem('loginErrorToastMessage', msg);
+      setError(details || msg);
+      showToast(msg, type as any, type === 'confirmation' ? 20000 : 5000, details);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev: any) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
@@ -69,16 +63,6 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
-      {showErrorToast && (
-        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg text-center font-medium shadow z-50">
-          {errorToastMessage}
-        </div>
-      )}
-      {showEmailConfirmToast && (
-        <div className="mb-4 p-4 bg-orange-100 text-orange-800 rounded-lg text-center font-medium shadow">
-          Please check your email and confirm your account to continue.
-        </div>
-      )}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-6">
           <img 
@@ -90,7 +74,6 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
         <p className="text-gray-600">Sign in to your TECHYX 360 account</p>
       </div>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -109,7 +92,6 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
             />
           </div>
         </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Password
@@ -124,29 +106,27 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
               className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your password"
               required
+              autoComplete="current-password"
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShowPassword((prev: boolean) => !prev)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
         </div>
-
         {error && (
           <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
             {error}
           </div>
         )}
-
         {isSupabaseConnected && (
           <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
             Connected to Supabase - Your login will be authenticated with the database
           </div>
         )}
-
         <button
           type="submit"
           disabled={isLoading}
@@ -155,7 +135,6 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
-
       <div className="mt-6 text-center">
         <p className="text-gray-600">
           Don't have an account?{' '}

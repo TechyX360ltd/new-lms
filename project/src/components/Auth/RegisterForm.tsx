@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from './ToastContext';
 
 interface RegisterFormProps {
   onToggleForm: () => void;
@@ -9,7 +10,8 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onToggleForm }: RegisterFormProps) {
   const [formData, setFormData] = useState<{
-    name: string;
+    firstName: string;
+    lastName: string;
     email: string;
     phone: string;
     password: string;
@@ -18,7 +20,8 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
     expertise: string;
     payoutEmail: string;
   }>({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     password: '',
@@ -31,8 +34,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
   const [error, setError] = useState('');
   const { register, isLoading, isSupabaseConnected } = useAuth();
   const navigate = useNavigate();
-  const [showErrorToast, setShowErrorToast] = useState(false);
-  const [errorToastMessage, setErrorToastMessage] = useState('');
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +42,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setErrorToastMessage('Passwords do not match');
-      setShowErrorToast(true);
-      setTimeout(() => setShowErrorToast(false), 8000);
+      showToast('Passwords do not match', 'error', 5000);
       return;
     }
 
@@ -53,7 +53,8 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
     
     try {
       console.log('Attempting to register user with:', {
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
         role: formData.role,
@@ -65,7 +66,8 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
       console.log('Is Supabase connected:', isSupabaseConnected);
       
       await register({
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
@@ -76,6 +78,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
       
       console.log('Registration successful');
       localStorage.setItem('showEmailConfirmToast', 'true');
+      showToast('Please check your email and confirm your account to continue.', 'confirmation', 20000);
       navigate('/');
       return;
     } catch (err: any) {
@@ -84,9 +87,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         msg = 'This email is already registered. Please log in or use a different email.';
       }
       setError(msg);
-      setErrorToastMessage(msg);
-      setShowErrorToast(true);
-      setTimeout(() => setShowErrorToast(false), 8000);
+      showToast(msg, 'error', 5000);
     }
   };
 
@@ -106,11 +107,6 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
-      {showErrorToast && (
-        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg text-center font-medium shadow">
-          {errorToastMessage}
-        </div>
-      )}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-6">
           <img 
@@ -124,21 +120,40 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Full Name
-          </label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="John Doe"
-              required
-            />
+        <div className="flex gap-4">
+          <div className="w-1/2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              First Name
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="John"
+                required
+              />
+            </div>
+          </div>
+          <div className="w-1/2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Last Name
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Doe"
+                required
+              />
+            </div>
           </div>
         </div>
 

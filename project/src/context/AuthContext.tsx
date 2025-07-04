@@ -101,7 +101,8 @@ const getAllUsers = async () => {
   const defaultUsers = [
     {
       id: '1',
-      name: 'John Doe',
+      firstName: 'John',
+      lastName: 'Doe',
       email: 'john@example.com',
       phone: '+2348012345678',
       role: 'learner' as const,
@@ -117,7 +118,8 @@ const getAllUsers = async () => {
     },
     {
       id: '2',
-      name: 'Admin User',
+      firstName: 'Admin',
+      lastName: 'User',
       email: 'admin@example.com',
       phone: '+2348012345679',
       role: 'admin' as const,
@@ -204,7 +206,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Format user data to match our app's structure
             const formattedUser = {
               id: userData.id,
-              name: userData.name,
+              firstName: userData.first_name,
+              lastName: userData.last_name,
               email: userData.email,
               phone: userData.phone,
               role: userData.role,
@@ -290,7 +293,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Format user data to match our app's structure
             const formattedUser = {
               id: userData.id,
-              name: userData.name,
+              firstName: userData.first_name,
+              lastName: userData.last_name,
               email: userData.email,
               phone: userData.phone,
               role: userData.role,
@@ -341,7 +345,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: userData.password,
           options: {
             data: {
-              name: userData.name,
+              first_name: userData.firstName,
+              last_name: userData.lastName,
               role: userData.role
             }
           }
@@ -353,7 +358,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .from('users')
             .insert({
               id: authData.user.id,
-              name: userData.name,
+              first_name: userData.firstName,
+              last_name: userData.lastName,
               email: userData.email,
               phone: userData.phone,
               role: userData.role,
@@ -370,25 +376,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select()
             .single();
           if (userError) throw userError;
-          const formattedUser = {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            phone: newUser.phone,
-            role: newUser.role,
-            bio: newUser.bio || '',
-            location: newUser.location || '',
-            occupation: newUser.occupation || '',
-            education: newUser.education || '',
-            avatar: newUser.avatar_url,
-            payoutEmail: newUser.payout_email,
-            expertise: newUser.expertise,
-            isApproved: newUser.is_approved,
-            enrolledCourses: [],
-            completedCourses: [],
-            createdAt: newUser.created_at,
-          };
-          dispatch({ type: 'LOGIN', payload: formattedUser });
+          dispatch({ type: 'SET_LOADING', payload: false });
           return;
         }
       }
@@ -417,9 +405,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       const updatedUsers = [...allUsers, newUser];
       localStorage.setItem('allUsers', JSON.stringify(updatedUsers));
-      const { password: _, ...userWithoutPassword } = newUser;
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-      dispatch({ type: 'LOGIN', payload: userWithoutPassword });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return;
     } catch (error) {
       console.error('Registration error:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -436,7 +423,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: userData.password || 'password',
           email_confirm: true,
           user_metadata: {
-            name: userData.name,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
             role: userData.role
           }
         });
@@ -449,7 +437,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .from('users')
             .insert({
               id: authData.user.id,
-              name: userData.name,
+              first_name: userData.firstName,
+              last_name: userData.lastName,
               email: userData.email,
               phone: userData.phone,
               role: userData.role,
@@ -654,7 +643,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase
           .from('users')
           .update({
-            name: profileData.name,
+            first_name: profileData.firstName,
+            last_name: profileData.lastName,
             email: profileData.email,
             phone: profileData.phone,
             bio: profileData.bio,

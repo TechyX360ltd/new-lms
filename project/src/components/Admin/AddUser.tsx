@@ -10,7 +10,8 @@ interface AddUserProps {
 export function AddUser({ onSave, onCancel }: AddUserProps) {
   const { addUserToAuth } = useAuth();
   const [userData, setUserData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     role: 'learner' as 'learner' | 'admin',
@@ -28,8 +29,12 @@ export function AddUser({ onSave, onCancel }: AddUserProps) {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!userData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!userData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!userData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
     }
 
     if (!userData.email.trim()) {
@@ -125,22 +130,42 @@ export function AddUser({ onSave, onCancel }: AddUserProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name *
+                First Name *
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  name="name"
-                  value={userData.name}
+                  name="firstName"
+                  value={userData.firstName}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.name ? 'border-red-300' : 'border-gray-300'
+                    errors.firstName ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="John Doe"
+                  placeholder="John"
                 />
               </div>
-              {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+              {errors.firstName && <p className="text-red-600 text-sm mt-1">{errors.firstName}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name *
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  name="lastName"
+                  value={userData.lastName}
+                  onChange={handleChange}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.lastName ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Doe"
+                />
+              </div>
+              {errors.lastName && <p className="text-red-600 text-sm mt-1">{errors.lastName}</p>}
             </div>
 
             <div>

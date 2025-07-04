@@ -24,7 +24,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 interface ProfileData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   bio: string;
@@ -54,7 +55,8 @@ export function Profile() {
 
   // Load user profile data
   const [profileData, setProfileData] = useState<ProfileData>({
-    name: user?.name || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
     phone: user?.phone || '',
     bio: user?.bio || '',
@@ -74,21 +76,20 @@ export function Profile() {
 
   const validateProfileForm = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!profileData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!profileData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
     }
-
+    if (!profileData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
     if (!profileData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(profileData.email)) {
       newErrors.email = 'Email is invalid';
     }
-
     if (!profileData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -259,7 +260,7 @@ export function Profile() {
 
   // Calculate profile completion percentage
   const getProfileCompletion = () => {
-    const fields = ['name', 'email', 'phone', 'bio', 'location', 'occupation', 'education'];
+    const fields = ['firstName', 'lastName', 'email', 'phone', 'bio', 'location', 'occupation', 'education'];
     const completedFields = fields.filter(field => profileData[field as keyof ProfileData]?.toString().trim());
     const avatarBonus = profileData.avatar ? 1 : 0;
     return Math.round(((completedFields.length + avatarBonus) / (fields.length + 1)) * 100);
@@ -406,7 +407,7 @@ export function Profile() {
 
               {/* User Info */}
               <div className="flex-1">
-                <h2 className="text-3xl font-bold mb-2">{profileData.name}</h2>
+                <h2 className="text-3xl font-bold mb-2">{profileData.firstName} {profileData.lastName}</h2>
                 <p className="text-blue-100 text-lg mb-1">{profileData.email}</p>
                 <p className="text-blue-200">{profileData.phone}</p>
                 <div className="mt-4 flex items-center gap-4">
@@ -441,7 +442,8 @@ export function Profile() {
                       onClick={() => {
                         setIsEditing(false);
                         setProfileData({
-                          name: user?.name || '',
+                          firstName: user?.firstName || '',
+                          lastName: user?.lastName || '',
                           email: user?.email || '',
                           phone: user?.phone || '',
                           bio: user?.bio || '',
@@ -471,22 +473,38 @@ export function Profile() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name *
+                    First Name *
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
                       type="text"
-                      value={profileData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      value={profileData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
                       disabled={!isEditing}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        !isEditing ? 'bg-gray-50 text-gray-600' : ''
-                      } ${errors.name ? 'border-red-300' : 'border-gray-300'}`}
-                      placeholder="Enter your full name"
+                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!isEditing ? 'bg-gray-50 text-gray-600' : ''} ${errors.firstName ? 'border-red-300' : 'border-gray-300'}`}
+                      placeholder="Enter your first name"
                     />
                   </div>
-                  {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+                  {errors.firstName && <p className="text-red-600 text-sm mt-1">{errors.firstName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={profileData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      disabled={!isEditing}
+                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!isEditing ? 'bg-gray-50 text-gray-600' : ''} ${errors.lastName ? 'border-red-300' : 'border-gray-300'}`}
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                  {errors.lastName && <p className="text-red-600 text-sm mt-1">{errors.lastName}</p>}
                 </div>
 
                 <div>

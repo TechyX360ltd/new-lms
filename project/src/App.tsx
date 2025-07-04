@@ -26,15 +26,33 @@ import { SupabaseConnectionStatus } from './components/SupabaseConnectionStatus'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { InstructorProfile } from './components/Learner/InstructorProfile';
 import { InstructorDashboard } from './components/Instructor/InstructorDashboard';
+import { ToastProvider } from './components/Auth/ToastContext';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {isLogin ? (
-          <LoginForm onToggleForm={() => setIsLogin(false)} />
+          <LoginForm
+            onToggleForm={() => setIsLogin(false)}
+            formData={formData}
+            setFormData={setFormData}
+            error={error}
+            setError={setError}
+            showErrorToast={showErrorToast}
+            setShowErrorToast={setShowErrorToast}
+            errorToastMessage={errorToastMessage}
+            setErrorToastMessage={setErrorToastMessage}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+          />
         ) : (
           <RegisterForm onToggleForm={() => setIsLogin(true)} />
         )}
@@ -203,7 +221,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }
