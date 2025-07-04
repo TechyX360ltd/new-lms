@@ -23,6 +23,9 @@ import { Analytics } from './components/Admin/Analytics';
 import { Settings } from './components/Admin/Settings';
 import { PaymentManagement } from './components/Admin/PaymentManagement';
 import { SupabaseConnectionStatus } from './components/SupabaseConnectionStatus';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { InstructorProfile } from './components/Learner/InstructorProfile';
+import { InstructorDashboard } from './components/Instructor/InstructorDashboard';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -147,7 +150,7 @@ function Dashboard() {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -158,10 +161,42 @@ function AppContent() {
   }
 
   return (
-    <>
-      {isAuthenticated ? <Dashboard /> : <AuthPage />}
-      <SupabaseConnectionStatus />
-    </>
+    <Router>
+      <Routes>
+        {/* Instructor Dashboard Route */}
+        <Route
+          path="/instructor/dashboard"
+          element={
+            isAuthenticated && user?.role === 'instructor' ? (
+              <InstructorDashboard />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        {/* Instructor Profile Route */}
+        <Route
+          path="/instructor/profile"
+          element={
+            isAuthenticated && user?.role === 'instructor' ? (
+              <InstructorProfile />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        {/* Main App Route (Dashboard/Auth) */}
+        <Route
+          path="/*"
+          element={
+            <>
+              {isAuthenticated ? <Dashboard /> : <AuthPage />}
+              <SupabaseConnectionStatus />
+            </>
+          }
+        />
+      </Routes>
+    </Router>
   );
 }
 

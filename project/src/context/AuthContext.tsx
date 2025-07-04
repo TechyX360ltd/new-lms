@@ -68,7 +68,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: Omit<User, 'id' | 'createdAt' | 'enrolledCourses' | 'completedCourses'>) => Promise<void>;
+  register: (userData: Omit<User, 'id' | 'createdAt' | 'enrolledCourses' | 'completedCourses'> & { password: string }) => Promise<void>;
   logout: () => void;
   addUserToAuth: (userData: any) => void;
   updateUserEnrollment: (enrolledCourses: string[]) => void;
@@ -255,7 +255,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
-    
     try {
       if (isSupabaseConnected) {
         // Try to sign in with Supabase Auth
@@ -263,9 +262,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email,
           password
         });
-        
-        if (error) throw error;
-        
+        if (error) {
+          dispatch({ type: 'SET_LOADING', payload: false });
+          throw error;
+        }
         if (data.user) {
           // Get user data from Supabase
           const { data: userData, error: userError } = await supabase
@@ -273,18 +273,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select('*')
             .eq('id', data.user.id)
             .single();
-          
-          if (userError) throw userError;
-          
+          if (userError) {
+            dispatch({ type: 'SET_LOADING', payload: false });
+            throw userError;
+          }
           if (userData) {
             // Get user enrollments
             const { data: enrollments, error: enrollmentsError } = await supabase
               .from('user_courses')
               .select('course_id, status')
               .eq('user_id', userData.id);
-            
-            if (enrollmentsError) throw enrollmentsError;
-            
+            if (enrollmentsError) {
+              dispatch({ type: 'SET_LOADING', payload: false });
+              throw enrollmentsError;
+            }
             // Format user data to match our app's structure
             const formattedUser = {
               id: userData.id,
@@ -305,17 +307,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 : [],
               createdAt: userData.created_at,
             };
-            
             dispatch({ type: 'LOGIN', payload: formattedUser });
             return;
           }
         }
       }
-      
       // Fallback to localStorage if Supabase auth fails
       const allUsers = await getAllUsers();
       const user = allUsers.find((u: any) => u.email === email);
-      
       if (user && user.password === password) {
         // Remove password from user object before storing
         const { password: _, ...userWithoutPassword } = user;
@@ -328,20 +327,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Login error:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
-      throw new Error('Invalid credentials');
+      throw error;
     }
   };
 
-  const register = async (userData: Omit<User, 'id' | 'createdAt' | 'enrolledCourses' | 'completedCourses'>) => {
+  const register = async (userData: Omit<User, 'id' | 'createdAt' | 'enrolledCourses' | 'completedCourses'> & { password: string }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
-    
     try {
       if (isSupabaseConnected) {
-        console.log('Attempting to register with Supabase');
         // Create auth user in Supabase
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: userData.email,
-          password: 'password', // Default password
+          password: userData.password,
           options: {
             data: {
               name: userData.name,
@@ -349,14 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         });
-        
-        if (authError) {
-          console.error('Supabase auth signup error:', authError);
-          throw authError;
-        }
-        
-        console.log('Auth data:', authData);
-        
+        if (authError) throw authError;
         if (authData.user) {
           // Create user profile in the users table
           const { data: newUser, error: userError } = await supabase
@@ -372,19 +362,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               occupation: userData.occupation || null,
               education: userData.education || null,
               avatar_url: null,
+              payout_email: userData.role === 'instructor' ? userData.payoutEmail : null,
+              expertise: userData.role === 'instructor' ? userData.expertise : null,
+              is_approved: userData.role === 'instructor' ? false : null,
               created_at: new Date().toISOString()
             })
             .select()
             .single();
-          
-          if (userError) {
-            console.error('Supabase user insert error:', userError);
-            throw userError;
-          }
-          
-          console.log('New user created:', newUser);
-          
-          // Format user data to match our app's structure
+          if (userError) throw userError;
           const formattedUser = {
             id: newUser.id,
             name: newUser.name,
@@ -396,47 +381,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             occupation: newUser.occupation || '',
             education: newUser.education || '',
             avatar: newUser.avatar_url,
+            payoutEmail: newUser.payout_email,
+            expertise: newUser.expertise,
+            isApproved: newUser.is_approved,
             enrolledCourses: [],
             completedCourses: [],
             createdAt: newUser.created_at,
           };
-          
           dispatch({ type: 'LOGIN', payload: formattedUser });
           return;
         }
       }
-      
       // Fallback to localStorage if Supabase fails
-      console.log('Falling back to localStorage for registration');
       const allUsers = await getAllUsers();
-      
-      // Check if user already exists
       const existingUser = allUsers.find((u: any) => u.email === userData.email);
       if (existingUser) {
         dispatch({ type: 'SET_LOADING', payload: false });
         throw new Error('User already exists');
       }
-      
-      // Create new user with empty arrays and profile fields
       const newUser: User & { password: string } = {
         ...userData,
         id: Date.now().toString(),
-        enrolledCourses: [], // Start with no enrolled courses
-        completedCourses: [], // Start with no completed courses
+        enrolledCourses: [],
+        completedCourses: [],
         bio: userData.bio || '',
         location: userData.location || '',
         occupation: userData.occupation || '',
         education: userData.education || '',
         avatar: null,
+        payoutEmail: userData.role === 'instructor' ? userData.payoutEmail : undefined,
+        expertise: userData.role === 'instructor' ? userData.expertise : undefined,
+        isApproved: userData.role === 'instructor' ? false : undefined,
         createdAt: new Date().toISOString(),
-        password: 'password', // Default password for registration
+        password: userData.password,
       };
-      
-      // Add to all users
       const updatedUsers = [...allUsers, newUser];
       localStorage.setItem('allUsers', JSON.stringify(updatedUsers));
-      
-      // Remove password before storing current user
       const { password: _, ...userWithoutPassword } = newUser;
       localStorage.setItem('user', JSON.stringify(userWithoutPassword));
       dispatch({ type: 'LOGIN', payload: userWithoutPassword });

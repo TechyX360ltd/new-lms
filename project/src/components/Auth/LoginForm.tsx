@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,25 +14,49 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const { login, isLoading, isSupabaseConnected } = useAuth();
+  const [showEmailConfirmToast, setShowEmailConfirmToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState('');
+
+  useEffect(() => {
+    if (localStorage.getItem('showEmailConfirmToast')) {
+      setShowEmailConfirmToast(true);
+      localStorage.removeItem('showEmailConfirmToast');
+      const timer = setTimeout(() => setShowEmailConfirmToast(false), 120000); // 120 seconds
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Show error toast if sessionStorage has a message (persists across remounts)
+  useEffect(() => {
+    const msg = sessionStorage.getItem('loginErrorToastMessage');
+    if (msg) {
+      setErrorToastMessage(msg);
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 8000);
+      sessionStorage.removeItem('loginErrorToastMessage');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
     try {
-      console.log('Attempting to login with:', {
-        email: formData.email,
-        password: formData.password
-      });
-      
-      console.log('Is Supabase connected:', isSupabaseConnected);
-      
       await login(formData.email, formData.password);
-      
-      console.log('Login successful');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Invalid email or password');
+    } catch (err: any) {
+      console.log('Login error object:', err);
+      let msg = 'Login failed. Please try again.';
+      if (err?.message?.toLowerCase().includes('invalid login credentials')) {
+        msg = 'Invalid email or password. Please try again.';
+      } else if (err?.message?.toLowerCase().includes('email not confirmed') || err?.message?.toLowerCase().includes('user not confirmed')) {
+        msg = 'Please confirm your email before logging in.';
+      }
+      setError(msg);
+      setErrorToastMessage(msg);
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 8000);
+      // Persist error toast in sessionStorage so it survives remounts
+      sessionStorage.setItem('loginErrorToastMessage', msg);
     }
   };
 
@@ -45,6 +69,16 @@ export function LoginForm({ onToggleForm }: LoginFormProps) {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
+      {showErrorToast && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg text-center font-medium shadow z-50">
+          {errorToastMessage}
+        </div>
+      )}
+      {showEmailConfirmToast && (
+        <div className="mb-4 p-4 bg-orange-100 text-orange-800 rounded-lg text-center font-medium shadow">
+          Please check your email and confirm your account to continue.
+        </div>
+      )}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-6">
           <img 

@@ -15,9 +15,18 @@ import {
   User,
   Building,
   Menu,
-  X
+  X,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+interface SidebarMenuItem {
+  id: string;
+  label: string;
+  icon: any;
+  path?: string;
+}
 
 interface SidebarProps {
   activeTab: string;
@@ -27,8 +36,9 @@ interface SidebarProps {
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const learnerMenuItems = [
+  const learnerMenuItems: SidebarMenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'courses', label: 'My Courses', icon: BookOpen },
     { id: 'browse', label: 'Browse Courses', icon: FolderOpen },
@@ -38,7 +48,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
-  const adminMenuItems = [
+  const adminMenuItems: SidebarMenuItem[] = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -52,9 +62,28 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  const menuItems = user?.role === 'admin' ? adminMenuItems : learnerMenuItems;
+  // Instructor menu items
+  const instructorMenuItems: SidebarMenuItem[] = [
+    { id: 'instructor-dashboard', label: 'Instructor Dashboard', icon: Home, path: '/instructor/dashboard' },
+    { id: 'instructor-profile', label: 'Instructor Profile', icon: UserCheck, path: '/instructor/profile' },
+  ];
 
-  const handleMenuItemClick = (itemId: string) => {
+  const menuItems =
+    user?.role === 'admin'
+      ? adminMenuItems
+      : user?.role === 'instructor'
+      ? [
+          ...learnerMenuItems,
+          ...instructorMenuItems,
+        ]
+      : learnerMenuItems;
+
+  const handleMenuItemClick = (itemId: string, path?: string) => {
+    if (path) {
+      navigate(path);
+      setIsMobileMenuOpen(false);
+      return;
+    }
     onTabChange(itemId);
     setIsMobileMenuOpen(false); // Close mobile menu after selection
   };
@@ -111,7 +140,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               return (
                 <li key={item.id}>
                   <button
-                    onClick={() => handleMenuItemClick(item.id)}
+                    onClick={() => handleMenuItemClick(item.id, item.path)}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 ${
                       isActive
                         ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700 shadow-sm'

@@ -1,23 +1,38 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface RegisterFormProps {
   onToggleForm: () => void;
 }
 
 export function RegisterForm({ onToggleForm }: RegisterFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    confirmPassword: string;
+    role: 'learner' | 'instructor' | 'admin';
+    expertise: string;
+    payoutEmail: string;
+  }>({
     name: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'learner' as 'learner' | 'admin',
+    role: 'learner',
+    expertise: '',
+    payoutEmail: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const { register, isLoading, isSupabaseConnected } = useAuth();
+  const navigate = useNavigate();
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +40,9 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setErrorToastMessage('Passwords do not match');
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 8000);
       return;
     }
 
@@ -40,6 +58,8 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         phone: formData.phone,
         role: formData.role,
         password: formData.password,
+        expertise: formData.role === 'instructor' ? formData.expertise : undefined,
+        payoutEmail: formData.role === 'instructor' ? formData.payoutEmail : undefined,
       });
       
       console.log('Is Supabase connected:', isSupabaseConnected);
@@ -48,13 +68,25 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        password: formData.password,
         role: formData.role,
+        expertise: formData.role === 'instructor' ? formData.expertise : undefined,
+        payoutEmail: formData.role === 'instructor' ? formData.payoutEmail : undefined,
       });
       
       console.log('Registration successful');
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError('Registration failed. Please try again.');
+      localStorage.setItem('showEmailConfirmToast', 'true');
+      navigate('/');
+      return;
+    } catch (err: any) {
+      let msg = 'Registration failed. Please try again.';
+      if (err?.status === 409 || err?.message?.toLowerCase().includes('user already registered') || err?.message?.toLowerCase().includes('duplicate key value')) {
+        msg = 'This email is already registered. Please log in or use a different email.';
+      }
+      setError(msg);
+      setErrorToastMessage(msg);
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 8000);
     }
   };
 
@@ -65,8 +97,20 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
     }));
   };
 
+  const handleRoleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      role: e.target.checked ? 'instructor' : 'learner',
+    }));
+  };
+
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
+      {showErrorToast && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg text-center font-medium shadow">
+          {errorToastMessage}
+        </div>
+      )}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-6">
           <img 
@@ -101,6 +145,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Email Address
+            <span className="ml-2 text-xs text-orange-500">(This will also be your payout email)</span>
           </label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -146,7 +191,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
               value={formData.password}
               onChange={handleChange}
               className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Create a password"
+              placeholder="Enter your password"
               required
             />
             <button
@@ -160,22 +205,50 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Confirm Password
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Confirm your password"
               required
             />
           </div>
         </div>
+
+        <div className="flex items-center mb-2">
+          <input
+            type="checkbox"
+            id="register-instructor"
+            checked={formData.role === 'instructor'}
+            onChange={handleRoleChange}
+            className="mr-2"
+          />
+          <label htmlFor="register-instructor" className="text-sm text-gray-700">
+            Register as Instructor
+          </label>
+        </div>
+
+        {formData.role === 'instructor' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Expertise</label>
+              <input
+                type="text"
+                name="expertise"
+                value={formData.expertise}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g. Web Development, Data Science"
+                required
+              />
+            </div>
+          </>
+        )}
 
         {error && (
           <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
