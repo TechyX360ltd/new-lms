@@ -1,18 +1,19 @@
 import React from 'react';
-import { BookOpen, Clock, Award, TrendingUp, Users } from 'lucide-react';
+import { BookOpen, Clock, Award, TrendingUp, Users, FolderOpen } from 'lucide-react';
 import { useCourses } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { WelcomeModal } from './WelcomeModal';
 import { supabase } from '../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
-interface LearnerDashboardProps {
-  onTabChange?: (tab: string) => void;
-  onViewCourse?: (courseId: string) => void;
-}
+interface LearnerDashboardProps {}
 
-export function LearnerDashboard({ onTabChange, onViewCourse }: LearnerDashboardProps) {
+export function LearnerDashboard({}: LearnerDashboardProps) {
   const { courses, loading: coursesLoading } = useCourses();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { onViewCourse } = useOutletContext<{ onViewCourse: (courseId: string) => void }>();
   const [showWelcome, setShowWelcome] = React.useState(false);
   const [stats, setStats] = React.useState<{
     enrolled_courses: number;
@@ -104,9 +105,7 @@ export function LearnerDashboard({ onTabChange, onViewCourse }: LearnerDashboard
   ];
 
   const handleBrowseCourses = () => {
-    if (onTabChange) {
-      onTabChange('browse');
-    }
+    navigate('/dashboard/browse');
   };
 
   const handleJoinCommunity = () => {
@@ -198,41 +197,82 @@ export function LearnerDashboard({ onTabChange, onViewCourse }: LearnerDashboard
       )}
 
       {/* Current Courses */}
-      <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Continue Learning</h2>
-        {enrolledCourses.length === 0 ? (
-          <div className="text-center py-12">
-            <BookOpen className="w-12 lg:w-16 h-12 lg:h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No courses enrolled</h3>
-            <p className="text-gray-600 mb-6">Browse our course catalog to get started</p>
-            <button 
-              onClick={handleBrowseCourses}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+      {enrolledCourses.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 lg:p-8 border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Continue Learning</h2>
+            <button
+              onClick={() => navigate('/dashboard/courses')}
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm lg:text-base"
             >
-              Browse Courses
+              View All Courses →
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            {enrolledCourses.map((course, index) => {
-              // You may want to fetch per-course progress from backend as well
-              return (
-                <div key={course.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{course.title}</h3>
-                    <p className="text-gray-600 mb-2">{course.description}</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+            {enrolledCourses.slice(0, 3).map((course) => (
+              <div key={course.id} className="bg-gray-50 rounded-lg p-4 lg:p-6 border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-4">
+                  <img
+                    src={course.thumbnail}
+                    alt={course.title}
+                    className="w-16 h-16 lg:w-20 lg:h-20 object-cover rounded-lg flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm lg:text-base line-clamp-2 mb-2">
+                      {course.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                      <Clock className="w-3 h-3" />
+                      <span>{course.duration} hours</span>
+                    </div>
+                    <button
+                      onClick={() => handleContinueCourse(course.id)}
+                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      Continue
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleContinueCourse(course.id)}
-                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Continue
-                  </button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-xl shadow-sm p-6 lg:p-8 border border-gray-100">
+        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <button
+            onClick={() => navigate('/dashboard/courses')}
+            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
+          >
+            <BookOpen className="w-8 h-8 text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">My Courses</span>
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/browse')}
+            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all duration-200"
+          >
+            <FolderOpen className="w-8 h-8 text-green-600" />
+            <span className="text-sm font-medium text-gray-900">Browse Courses</span>
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/certificates')}
+            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200"
+          >
+            <Award className="w-8 h-8 text-purple-600" />
+            <span className="text-sm font-medium text-gray-900">Certificates</span>
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/progress')}
+            className="flex flex-col items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200"
+          >
+            <TrendingUp className="w-8 h-8 text-orange-600" />
+            <span className="text-sm font-medium text-gray-900">Progress</span>
+          </button>
+        </div>
       </div>
     </div>
   );

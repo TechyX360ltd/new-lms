@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, 
   Plus, 
@@ -29,6 +29,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useCategories } from '../../hooks/useData';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface Module {
   id: string;
@@ -43,14 +44,59 @@ interface Lesson {
   title: string;
   content: string;
   contentType: 'text' | 'video' | 'document' | 'image';
-  attachments: File[];
+  attachments: string[];
   duration: number;
   sort_order: number;
+  videoUrl?: string;
 }
 
 interface CreateCourseProps {
   onSave: (courseData: any) => void;
   onCancel: () => void;
+}
+
+// Add a modal component for video upload
+function VideoUploadModal({ open, onClose, onUpload, progress, error }: {
+  open: boolean;
+  onClose: () => void;
+  onUpload: (file: File) => void;
+  progress: number;
+  error: string | null;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full relative animate-fade-in">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+          aria-label="Close"
+        >×</button>
+        <h2 className="text-xl font-bold mb-4">Upload Lesson Video</h2>
+        <input
+          type="file"
+          accept="video/mp4,video/x-matroska"
+          ref={fileInputRef}
+          className="mb-4"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+          }}
+        />
+        <div className="mb-2 text-xs text-gray-500">Max size: 50MB. Formats: mp4, mkv.</div>
+        {progress > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div
+              className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+        {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
+      </div>
+    </div>
+  );
 }
 
 export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
@@ -75,6 +121,12 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
   const [refreshingSchools, setRefreshingSchools] = useState(false);
+  const [videoModal, setVideoModal] = useState<{ open: boolean; moduleId: string | null; lessonId: string | null; }>(
+    { open: false, moduleId: null, lessonId: null }
+  );
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const certificateTemplates = [
     { id: 'default', name: 'Default Template', description: 'Classic blue and white design' },
@@ -96,6 +148,32 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
       setRefreshingSchools(false);
     }
   };
+
+  // Mark form as dirty on any change
+  useEffect(() => {
+    setIsDirty(true);
+  }, [
+    courseData.title,
+    courseData.description,
+    courseData.instructor,
+    courseData.category,
+    courseData.price,
+    modules,
+    // add any other fields you want to track
+  ]);
+
+  // Warn on tab close if form is dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Rich Text Formatting Functions
   const formatText = (moduleId: string, lessonId: string, format: string) => {
@@ -186,7 +264,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
     }
 
     if (!courseData.category) {
-      newErrors.category = 'Course school is required';
+      newErrors.category = 'Category is required';
     }
 
     if (courseData.price <= 0) {
@@ -284,9 +362,19 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
     setMinimizedLessons(newMinimized);
   };
 
-  const handleFileUpload = (moduleId: string, lessonId: string, files: FileList) => {
+  const handleFileUpload = async (moduleId: string, lessonId: string, files: FileList) => {
     const fileArray = Array.from(files);
-    updateLesson(moduleId, lessonId, 'attachments', fileArray);
+    // Upload all files to Cloudinary and store their URLs
+    const uploadedUrls: string[] = [];
+    for (const file of fileArray) {
+      try {
+        const uploadResult = await uploadToCloudinary(file, 'lesson-media');
+        uploadedUrls.push(uploadResult.secure_url);
+      } catch (err) {
+        alert('Failed to upload file to Cloudinary.');
+      }
+    }
+    updateLesson(moduleId, lessonId, 'attachments', uploadedUrls);
   };
 
   const toggleModuleExpansion = (moduleId: string) => {
@@ -320,6 +408,59 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
       .replace(/\n/g, '<br>');
   };
 
+  const handleVideoUpload = async (file: File) => {
+    setVideoUploadError(null);
+    if (!file) return;
+    if (!['video/mp4', 'video/x-matroska'].includes(file.type)) {
+      setVideoUploadError('Only mp4 and mkv files are allowed.');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setVideoUploadError('File size must be 50MB or less.');
+      return;
+    }
+    setVideoUploadProgress(0);
+    try {
+      // Use XMLHttpRequest for progress
+      const url = `https://api.cloudinary.com/v1_1/dx9hdygy3/upload`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'techyx360lms');
+      formData.append('folder', 'lesson-videos');
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setVideoUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const res = JSON.parse(xhr.responseText);
+            // Save the video URL to the lesson
+            if (videoModal.moduleId && videoModal.lessonId) {
+              updateLesson(videoModal.moduleId, videoModal.lessonId, 'videoUrl', res.secure_url);
+            }
+            setVideoModal({ open: false, moduleId: null, lessonId: null });
+            setVideoUploadProgress(0);
+            resolve();
+          } else {
+            setVideoUploadError('Upload failed.');
+            reject();
+          }
+        };
+        xhr.onerror = () => {
+          setVideoUploadError('Upload failed.');
+          reject();
+        };
+        xhr.send(formData);
+      });
+    } catch (err) {
+      setVideoUploadError('Upload failed.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -331,13 +472,18 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
 
     try {
       const totalDuration = calculateTotalDuration();
+      let thumbnailUrl = courseData.thumbnail;
+      if (courseData.thumbnail instanceof File) {
+        const uploadResult = await uploadToCloudinary(courseData.thumbnail, 'course-thumbnails');
+        thumbnailUrl = uploadResult.secure_url;
+      }
       const coursePayload = {
         ...courseData,
         id: Date.now().toString(),
         duration: Math.ceil(totalDuration / 60), // Convert minutes to hours
         modules,
         enrolledCount: 0,
-        thumbnail: courseData.thumbnail ? URL.createObjectURL(courseData.thumbnail) : 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=600',
+        thumbnail: thumbnailUrl || 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=600',
         lessons: modules.flatMap(module => module.lessons.map(lesson => ({
           id: lesson.id,
           title: lesson.title,
@@ -350,6 +496,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
       };
 
       await onSave(coursePayload);
+      setIsDirty(false); // Reset dirty state after successful save
     } catch (error) {
       console.error('Error creating course:', error);
     } finally {
@@ -418,7 +565,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Course School *
+                  Course Category *
                 </label>
                 <button
                   type="button"
@@ -441,7 +588,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                 disabled={categoriesLoading}
               >
                 <option value="">
-                  {categoriesLoading ? 'Loading schools...' : 'Select course school'}
+                  {categoriesLoading ? 'Loading schools...' : 'Select a category'}
                 </option>
                 {categories.map(category => (
                   <option key={category.id} value={category.id}>
@@ -582,332 +729,130 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
           {errors.modules && <p className="text-red-600 text-sm mb-4">{errors.modules}</p>}
 
           <div className="space-y-4">
-            {modules.map((module, moduleIndex) => (
-              <div key={module.id} className="border border-gray-200 rounded-lg">
-                <div className="p-4 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <button
-                        type="button"
-                        onClick={() => toggleModuleExpansion(module.id)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        {expandedModules.has(module.id) ? 
-                          <ChevronDown className="w-5 h-5" /> : 
-                          <ChevronRight className="w-5 h-5" />
-                        }
-                      </button>
-                      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          value={module.title}
-                          onChange={(e) => updateModule(module.id, 'title', e.target.value)}
-                          placeholder={`Module ${moduleIndex + 1} Title`}
-                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <input
-                          type="text"
-                          value={module.description}
-                          onChange={(e) => updateModule(module.id, 'description', e.target.value)}
-                          placeholder="Module description"
-                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteModule(module.id)}
-                      className="text-red-400 hover:text-red-600 p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            {modules.map((module) => (
+              <div key={module.id} className="mb-6 border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={module.title}
+                    onChange={e => updateModule(module.id, 'title', e.target.value)}
+                    className="flex-1 px-4 py-2 text-lg border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Module Title"
+                  />
+                  <input
+                    type="text"
+                    value={module.description}
+                    onChange={e => updateModule(module.id, 'description', e.target.value)}
+                    className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Module Description"
+                  />
+                  <button onClick={() => deleteModule(module.id)} className="text-red-600 hover:bg-red-50 rounded p-2 ml-2">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
-
-                {expandedModules.has(module.id) && (
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium text-gray-900">Lessons</h4>
-                      <button
-                        type="button"
-                        onClick={() => addLesson(module.id)}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add Lesson
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {module.lessons.map((lesson, lessonIndex) => {
-                        const isMinimized = minimizedLessons.has(lesson.id);
-                        
-                        return (
-                          <div key={lesson.id} className="border border-gray-200 rounded-lg">
-                            {/* Lesson Header */}
-                            <div className="p-4 bg-gray-50 border-b border-gray-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <span className="text-sm font-medium text-gray-500">
-                                    Lesson {lessonIndex + 1}
-                                  </span>
-                                  <input
-                                    type="text"
-                                    value={lesson.title}
-                                    onChange={(e) => updateLesson(module.id, lesson.id, 'title', e.target.value)}
-                                    placeholder={`Lesson ${lessonIndex + 1} Title`}
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleLessonMinimize(lesson.id)}
-                                    className="p-2 text-gray-400 hover:text-gray-600 rounded transition-colors"
-                                    title={isMinimized ? 'Expand lesson' : 'Minimize lesson'}
-                                  >
-                                    {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteLesson(module.id, lesson.id)}
-                                    className="text-red-400 hover:text-red-600 p-2"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Lesson Content (Collapsible) */}
-                            {!isMinimized && (
-                              <div className="p-4">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                                  <select
-                                    value={lesson.contentType}
-                                    onChange={(e) => updateLesson(module.id, lesson.id, 'contentType', e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  >
-                                    <option value="text">Text</option>
-                                    <option value="video">Video</option>
-                                    <option value="document">Document</option>
-                                    <option value="image">Image</option>
-                                  </select>
-                                  <input
-                                    type="number"
-                                    value={lesson.duration}
-                                    onChange={(e) => updateLesson(module.id, lesson.id, 'duration', Number(e.target.value))}
-                                    placeholder="Duration (min)"
-                                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    min="0"
-                                  />
-                                </div>
-
-                                {/* Rich Text Formatting Toolbar */}
-                                <div className="mb-2">
-                                  <div className="flex flex-wrap gap-1 p-2 bg-gray-50 rounded-lg border">
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'bold')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Bold"
-                                    >
-                                      <Bold className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'italic')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Italic"
-                                    >
-                                      <Italic className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'underline')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Underline"
-                                    >
-                                      <Underline className="w-4 h-4" />
-                                    </button>
-                                    <div className="w-px bg-gray-300 mx-1"></div>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'heading')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors text-xs font-bold"
-                                      title="Heading"
-                                    >
-                                      H2
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'bullet')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Bullet List"
-                                    >
-                                      <List className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'numbered')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Numbered List"
-                                    >
-                                      <ListOrdered className="w-4 h-4" />
-                                    </button>
-                                    <div className="w-px bg-gray-300 mx-1"></div>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'quote')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Quote"
-                                    >
-                                      <Quote className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'code')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Code"
-                                    >
-                                      <Code className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => formatText(module.id, lesson.id, 'link')}
-                                      className="p-2 hover:bg-gray-200 rounded transition-colors"
-                                      title="Link"
-                                    >
-                                      <Link className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <textarea
-                                  id={`lesson-content-${module.id}-${lesson.id}`}
-                                  value={lesson.content}
-                                  onChange={(e) => updateLesson(module.id, lesson.id, 'content', e.target.value)}
-                                  placeholder="Lesson content... Use the formatting toolbar above for rich text formatting"
-                                  rows={6}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4 font-mono text-sm"
-                                />
-
-                                {/* Preview */}
-                                {lesson.content && (
-                                  <div className="mb-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Eye className="w-4 h-4 text-gray-500" />
-                                      <span className="text-sm font-medium text-gray-700">Preview:</span>
-                                    </div>
-                                    <div 
-                                      className="p-3 bg-gray-50 rounded border text-sm"
-                                      dangerouslySetInnerHTML={{ __html: previewFormattedText(lesson.content) }}
-                                    />
-                                  </div>
-                                )}
-
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Attachments
-                                  </label>
-                                  <div className="flex items-center gap-4">
-                                    <input
-                                      type="file"
-                                      multiple
-                                      accept="video/*,image/*,.pdf,.doc,.docx,.ppt,.pptx"
-                                      onChange={(e) => e.target.files && handleFileUpload(module.id, lesson.id, e.target.files)}
-                                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                    <div className="flex gap-2">
-                                      <Video className="w-5 h-5 text-gray-400" />
-                                      <Image className="w-5 h-5 text-gray-400" />
-                                      <FileText className="w-5 h-5 text-gray-400" />
-                                    </div>
-                                  </div>
-                                  {lesson.attachments.length > 0 && (
-                                    <div className="mt-2 text-sm text-gray-600">
-                                      {lesson.attachments.length} file(s) selected
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                <div className="ml-4">
+                  <h4 className="font-semibold mb-2">Lessons</h4>
+                  {module.lessons.map((lesson) => (
+                    <div key={lesson.id} className="mb-4 p-3 bg-white rounded-lg border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={lesson.title}
+                          onChange={e => updateLesson(module.id, lesson.id, 'title', e.target.value)}
+                          className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Lesson Title"
+                        />
+                        <select
+                          value={lesson.contentType}
+                          onChange={e => updateLesson(module.id, lesson.id, 'contentType', e.target.value)}
+                          className="px-2 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="text">Text</option>
+                          <option value="video">Video</option>
+                          <option value="mixed">Mixed</option>
+                        </select>
+                        <button onClick={() => deleteLesson(module.id, lesson.id)} className="text-red-600 hover:bg-red-50 rounded p-2 ml-2">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                      {/* ContentType logic */}
+                      {(lesson.contentType === 'text' || lesson.contentType === 'mixed') && (
+                        <div className="mb-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <FileText className="w-4 h-4 text-blue-500" />
+                            <span className="font-semibold text-blue-700">Text Content</span>
                           </div>
-                        );
-                      })}
+                          {/* Rich text formatting buttons */}
+                          <div className="flex gap-2 mb-1">
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'bold')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'italic')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 italic">I</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'underline')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 underline">U</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'code')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 font-mono">&lt;/&gt;</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'quote')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">"</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'bullet')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">•</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'numbered')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">1.</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'heading')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold">H2</button>
+                            <button type="button" onClick={() => formatText(module.id, lesson.id, 'link')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-blue-600">🔗</button>
+                          </div>
+                          <textarea
+                            id={`lesson-content-${module.id}-${lesson.id}`}
+                            value={lesson.content}
+                            onChange={e => updateLesson(module.id, lesson.id, 'content', e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
+                            placeholder="Lesson Content (supports rich text formatting)"
+                            rows={4}
+                          />
+                        </div>
+                      )}
+                      {(lesson.contentType === 'video' || lesson.contentType === 'mixed') && (
+                        <div className="mb-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Video className="w-4 h-4 text-purple-500" />
+                            <span className="font-semibold text-purple-700">Video Content</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setVideoModal({ open: true, moduleId: module.id, lessonId: lesson.id })}
+                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-medium hover:bg-blue-200"
+                          >
+                            {lesson.videoUrl ? 'Replace Video' : 'Upload Video'}
+                          </button>
+                          {lesson.videoUrl && (
+                            <video src={lesson.videoUrl} controls className="w-full mt-2 rounded" />
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addLesson(module.id)}
+                    className="mt-2 bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-medium hover:bg-green-200"
+                  >
+                    + Add Lesson
+                  </button>
+                </div>
               </div>
             ))}
           </div>
-
-          {modules.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p>No modules added yet. Click "Add Module" to get started.</p>
-            </div>
-          )}
         </div>
 
-        {/* Formatting Guide */}
-        <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
-          <h3 className="text-lg font-bold text-blue-900 mb-4">Rich Text Formatting Guide</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <h4 className="font-semibold text-blue-800 mb-2">Text Formatting:</h4>
-              <ul className="space-y-1 text-blue-700">
-                <li><code>**Bold text**</code> → <strong>Bold text</strong></li>
-                <li><code>*Italic text*</code> → <em>Italic text</em></li>
-                <li><code>__Underlined__</code> → <u>Underlined</u></li>
-                <li><code>`Code text`</code> → <code className="bg-gray-100 px-1 rounded">Code text</code></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-blue-800 mb-2">Structure:</h4>
-              <ul className="space-y-1 text-blue-700">
-                <li><code>## Heading</code> → Large heading</li>
-                <li><code>• Bullet point</code> → Bullet list</li>
-                <li><code>1. Numbered item</code> → Numbered list</li>
-                <li><code>{'>'} Quote</code> → Blockquote</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Publishing Options */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Publishing Options</h2>
-          
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="isPublished"
-              checked={courseData.isPublished}
-              onChange={(e) => setCourseData({...courseData, isPublished: e.target.checked})}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="isPublished" className="text-sm font-medium text-gray-700">
-              Publish course immediately
-            </label>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            If unchecked, the course will be saved as a draft and can be published later.
-          </p>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            {isLoading ? 'Creating Course...' : 'Create Course'}
-          </button>
-        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg mt-8 hover:bg-blue-700 transition-all duration-200"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Adding...' : 'Add Course'}
+        </button>
       </form>
+
+      <VideoUploadModal
+        open={videoModal.open}
+        onClose={() => setVideoModal({ open: false, moduleId: null, lessonId: null })}
+        onUpload={handleVideoUpload}
+        progress={videoUploadProgress}
+        error={videoUploadError}
+      />
     </div>
   );
 }

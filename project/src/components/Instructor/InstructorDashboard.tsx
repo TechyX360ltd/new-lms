@@ -62,7 +62,7 @@ export function InstructorDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar activeTab="instructor-dashboard" onTabChange={() => {}} />
+      <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 p-4 lg:p-8 overflow-auto">
@@ -71,7 +71,7 @@ export function InstructorDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-                Welcome, {user?.name} {user?.isApproved && <CheckCircle className="inline w-6 h-6 text-green-600 ml-1" title="Verified Instructor" />}
+                Welcome, {user?.firstName} {user?.isApproved && <CheckCircle className="inline w-6 h-6 text-green-600 ml-1" />}
               </h1>
               <p className="text-gray-600">Here's your instructor dashboard overview</p>
             </div>

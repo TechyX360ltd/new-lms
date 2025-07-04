@@ -3,6 +3,7 @@ import { Clock, Users, Star, CheckCircle, Award } from 'lucide-react';
 import { useCategories } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { Link } from 'react-router-dom';
 
 const FILTERS = [
   { key: 'recentlyViewed', label: 'Based on your recent views' },
@@ -91,7 +92,7 @@ export function BrowseCourses() {
 
   // --- Category Tabs ---
   const categoryTabs = [
-    { id: 'all', name: 'All' },
+    { id: 'all', name: 'All', courseCount: null },
     ...categories,
   ];
 
@@ -140,9 +141,6 @@ export function BrowseCourses() {
           <div className="absolute top-4 left-4 bg-white bg-opacity-90 text-gray-800 px-2 py-1 rounded text-xs font-medium">
             {course.format}
           </div>
-          <div className="absolute top-4 right-4 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-            ₦{course.price?.toLocaleString?.() ?? course.price}
-          </div>
           {isEnrolled && (
             <div className="absolute bottom-4 left-4 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
               Enrolled
@@ -158,7 +156,15 @@ export function BrowseCourses() {
         <div className="p-4">
           <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
           <p className="text-gray-600 mb-2 text-xs line-clamp-2">{course.description}</p>
-          <p className="text-xs text-gray-500 mb-2">by {course.instructor}</p>
+          <p className="text-xs mb-2">
+            by{' '}
+            <Link
+              to={`/instructor/${course.instructorId}`}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              {course.instructor}
+            </Link>
+          </p>
           <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
@@ -215,6 +221,9 @@ export function BrowseCourses() {
             className={`px-4 py-2 rounded-t-lg font-medium transition-colors whitespace-nowrap ${selectedCategory === category.id ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             {category.name}
+            {category.id !== 'all' && typeof category.courseCount === 'number' && (
+              <span className="ml-1 text-xs text-gray-500">({category.courseCount})</span>
+            )}
           </button>
         ))}
       </div>

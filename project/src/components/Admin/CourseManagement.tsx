@@ -23,7 +23,10 @@ export function CourseManagement() {
 
   const handleCreateCourse = async (courseData: any) => {
     console.log('Creating course:', courseData);
-    addCourse(courseData);
+    const { error } = await addCourse(courseData);
+    if (error) {
+      alert('Error creating course: ' + error.message);
+    }
     setShowCreateCourse(false);
   };
 

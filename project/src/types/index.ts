@@ -24,6 +24,7 @@ export interface Course {
   title: string;
   description: string;
   instructor: string;
+  instructorId: string;
   category: string;
   format: 'text' | 'video' | 'mixed';
   duration: number; // in hours

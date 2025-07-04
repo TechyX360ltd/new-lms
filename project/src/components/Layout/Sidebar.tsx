@@ -19,47 +19,45 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarMenuItem {
   id: string;
   label: string;
   icon: any;
-  path?: string;
+  path: string;
 }
 
-interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
+interface SidebarProps {}
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({}: SidebarProps) {
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const learnerMenuItems: SidebarMenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'courses', label: 'My Courses', icon: BookOpen },
-    { id: 'browse', label: 'Browse Courses', icon: FolderOpen },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'certificates', label: 'My Certificates', icon: Award },
-    { id: 'progress', label: 'Progress', icon: BarChart3 },
-    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+    { id: 'courses', label: 'My Courses', icon: BookOpen, path: '/dashboard/courses' },
+    { id: 'browse', label: 'Browse Courses', icon: FolderOpen, path: '/dashboard/browse' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard/notifications' },
+    { id: 'certificates', label: 'My Certificates', icon: Award, path: '/dashboard/certificates' },
+    { id: 'progress', label: 'Progress', icon: BarChart3, path: '/dashboard/progress' },
+    { id: 'profile', label: 'Profile', icon: User, path: '/dashboard/profile' },
   ];
 
   const adminMenuItems: SidebarMenuItem[] = [
-    { id: 'overview', label: 'Overview', icon: Home },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'courses', label: 'Courses', icon: BookOpen },
-    { id: 'schools', label: 'Schools', icon: Building },
-    { id: 'progress-tracking', label: 'Progress Tracking', icon: TrendingUp },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'certificates', label: 'Certificate Preview', icon: Eye },
-    { id: 'categories', label: 'Categories', icon: FolderOpen },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'overview', label: 'Overview', icon: Home, path: '/admin/overview' },
+    { id: 'users', label: 'Users', icon: Users, path: '/admin/users' },
+    { id: 'courses', label: 'Courses', icon: BookOpen, path: '/admin/courses' },
+    { id: 'schools', label: 'Schools', icon: Building, path: '/admin/schools' },
+    { id: 'progress-tracking', label: 'Progress Tracking', icon: TrendingUp, path: '/admin/progress-tracking' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, path: '/admin/notifications' },
+    { id: 'certificates', label: 'Certificate Preview', icon: Eye, path: '/admin/certificates' },
+    { id: 'categories', label: 'Categories', icon: FolderOpen, path: '/admin/categories' },
+    { id: 'payments', label: 'Payments', icon: CreditCard, path: '/admin/payments' },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   // Instructor menu items
@@ -78,14 +76,13 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         ]
       : learnerMenuItems;
 
-  const handleMenuItemClick = (itemId: string, path?: string) => {
-    if (path) {
-      navigate(path);
-      setIsMobileMenuOpen(false);
-      return;
-    }
-    onTabChange(itemId);
-    setIsMobileMenuOpen(false); // Close mobile menu after selection
+  const handleMenuItemClick = (path: string) => {
+    navigate(path);
+    setIsMobileMenuOpen(false);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
@@ -135,19 +132,19 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const active = isActive(item.path);
               
               return (
                 <li key={item.id}>
                   <button
-                    onClick={() => handleMenuItemClick(item.id, item.path)}
+                    onClick={() => handleMenuItemClick(item.path)}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 ${
-                      isActive
+                      active
                         ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700 shadow-sm'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600' : ''}`} />
+                    <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-blue-600' : ''}`} />
                     <span className="font-medium truncate">{item.label}</span>
                   </button>
                 </li>

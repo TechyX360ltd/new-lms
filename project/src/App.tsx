@@ -23,10 +23,12 @@ import { Analytics } from './components/Admin/Analytics';
 import { Settings } from './components/Admin/Settings';
 import { PaymentManagement } from './components/Admin/PaymentManagement';
 import { SupabaseConnectionStatus } from './components/SupabaseConnectionStatus';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { InstructorProfile } from './components/Learner/InstructorProfile';
 import { InstructorDashboard } from './components/Instructor/InstructorDashboard';
 import { ToastProvider } from './components/Auth/ToastContext';
+import { CategoryManagement } from './components/Admin/CategoryManagement';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { InstructorProfilePage } from './components/Learner/InstructorProfilePage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -61,11 +63,9 @@ function AuthPage() {
   );
 }
 
-function Dashboard() {
+// Dashboard Layout Component
+function DashboardLayout() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState(
-    user?.role === 'admin' ? 'overview' : 'dashboard'
-  );
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
   const [showCertificatePreview, setShowCertificatePreview] = useState(false);
 
@@ -76,7 +76,6 @@ function Dashboard() {
 
   const handleBackFromCourse = () => {
     setViewingCourseId(null);
-    setActiveTab('dashboard');
   };
 
   // If viewing a course, show the course viewer
@@ -92,7 +91,7 @@ function Dashboard() {
   if (showCertificatePreview) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
           <main className="flex-1 p-4 lg:p-8 overflow-auto">
@@ -103,68 +102,32 @@ function Dashboard() {
     );
   }
 
-  const renderContent = () => {
-    if (user?.role === 'admin') {
-      switch (activeTab) {
-        case 'overview':
-          return <AdminOverview />;
-        case 'users':
-          return <UserManagement />;
-        case 'courses':
-          return <CourseManagement />;
-        case 'schools':
-          return <SchoolManagement />;
-        case 'progress-tracking':
-          return <ProgressTracking />;
-        case 'notifications':
-          return <NotificationCenter />;
-        case 'certificates':
-          setShowCertificatePreview(true);
-          return null;
-        case 'categories':
-          return <div className="p-4 lg:p-8 text-center text-gray-500">Categories management coming soon...</div>;
-        case 'payments':
-          return <PaymentManagement />;
-        case 'analytics':
-          return <Analytics />;
-        case 'settings':
-          return <Settings />;
-        default:
-          return <AdminOverview />;
-      }
-    } else {
-      switch (activeTab) {
-        case 'dashboard':
-          return <LearnerDashboard onTabChange={setActiveTab} onViewCourse={handleViewCourse} />;
-        case 'courses':
-          return <CourseList onTabChange={setActiveTab} onViewCourse={handleViewCourse} />;
-        case 'browse':
-          return <BrowseCourses />;
-        case 'notifications':
-          return <LearnerNotificationCenter />;
-        case 'certificates':
-          return <Certificates />;
-        case 'progress':
-          return <Progress />;
-        case 'profile':
-          return <Profile />;
-        default:
-          return <LearnerDashboard onTabChange={setActiveTab} onViewCourse={handleViewCourse} />;
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 p-4 lg:p-8 overflow-auto">
-          {renderContent()}
+          <Outlet context={{ onViewCourse: handleViewCourse, setShowCertificatePreview }} />
         </main>
       </div>
     </div>
   );
+}
+
+// Protected Route Component
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) {
+  const { isAuthenticated, user } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  if (!allowedRoles.includes(user?.role || '')) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
 }
 
 function AppContent() {
@@ -181,39 +144,87 @@ function AppContent() {
   return (
     <Router>
       <Routes>
-        {/* Instructor Dashboard Route */}
+        {/* Auth Route */}
+        <Route
+          path="/"
+          element={
+            isAuthenticated ? (
+              <Navigate 
+                to={user?.role === 'admin' ? '/admin/overview' : '/dashboard'} 
+                replace 
+              />
+            ) : (
+              <AuthPage />
+            )
+          }
+        />
+
+        {/* Instructor Routes */}
         <Route
           path="/instructor/dashboard"
           element={
-            isAuthenticated && user?.role === 'instructor' ? (
+            <ProtectedRoute allowedRoles={['instructor']}>
               <InstructorDashboard />
-            ) : (
-              <Navigate to="/" replace />
-            )
+            </ProtectedRoute>
           }
         />
-        {/* Instructor Profile Route */}
         <Route
           path="/instructor/profile"
           element={
-            isAuthenticated && user?.role === 'instructor' ? (
+            <ProtectedRoute allowedRoles={['instructor']}>
               <InstructorProfile />
-            ) : (
-              <Navigate to="/" replace />
-            )
+            </ProtectedRoute>
           }
         />
-        {/* Main App Route (Dashboard/Auth) */}
+        {/* Public Instructor Profile Route */}
         <Route
-          path="/*"
-          element={
-            <>
-              {isAuthenticated ? <Dashboard /> : <AuthPage />}
-              <SupabaseConnectionStatus />
-            </>
-          }
+          path="/instructor/:instructorId"
+          element={<InstructorProfilePage />}
         />
+
+        {/* Learner Dashboard Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['learner', 'instructor']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<LearnerDashboard />} />
+          <Route path="courses" element={<CourseList />} />
+          <Route path="browse" element={<BrowseCourses />} />
+          <Route path="notifications" element={<LearnerNotificationCenter />} />
+          <Route path="certificates" element={<Certificates />} />
+          <Route path="progress" element={<Progress />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
+
+        {/* Admin Dashboard Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="overview" element={<AdminOverview />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="courses" element={<CourseManagement />} />
+          <Route path="schools" element={<SchoolManagement />} />
+          <Route path="progress-tracking" element={<ProgressTracking />} />
+          <Route path="notifications" element={<NotificationCenter />} />
+          <Route path="categories" element={<CategoryManagement />} />
+          <Route path="payments" element={<PaymentManagement />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Catch all route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <SupabaseConnectionStatus />
     </Router>
   );
 }

@@ -71,9 +71,9 @@ export function CategoryManagement() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Manage Categories</h1>
-      <form onSubmit={handleAddCategory} className="flex flex-col md:flex-row gap-4 items-end bg-white p-4 rounded-xl shadow border border-gray-100">
+    <div className="px-0 py-0">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Manage Categories</h1>
+      <form onSubmit={handleAddCategory} className="bg-white rounded-xl shadow border border-gray-100 p-6 mb-8 flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
           <input
@@ -103,7 +103,7 @@ export function CategoryManagement() {
           <Plus className="w-4 h-4" /> Add
         </button>
       </form>
-      {error && <div className="text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
+      {error && <div className="text-red-600 bg-red-50 p-3 rounded-lg mb-4">{error}</div>}
       <div className="bg-white rounded-xl shadow border border-gray-100 divide-y divide-gray-100">
         {loading ? (
           <div className="p-8 text-center text-gray-400">Loading...</div>

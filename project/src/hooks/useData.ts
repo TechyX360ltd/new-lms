@@ -770,49 +770,67 @@ export function useCourses() {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const allCourses = await getAllCourses();
-      setCourses(allCourses);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) {
+        setCourses([]);
+      } else {
+        setCourses(data || []);
+      }
       setLoading(false);
     };
-
     fetchCourses();
   }, []);
 
-  const addCourse = async (newCourse: Course) => {
-    const allCourses = await getAllCourses();
-    const updatedCourses = [...allCourses, newCourse];
-    await saveAllCourses(updatedCourses);
-    setCourses(updatedCourses);
+  const addCourse = async (newCourse: Partial<Course>) => {
+    const { data, error } = await supabase
+      .from('courses')
+      .insert([newCourse])
+      .select();
+    if (!error && data) {
+      setCourses(prev => [data[0], ...prev]);
+    }
+    return { data, error };
   };
 
   const updateCourse = async (courseId: string, updatedCourse: Partial<Course>) => {
-    const allCourses = await getAllCourses();
-    const updatedCourses = allCourses.map(course =>
-      course.id === courseId ? { ...course, ...updatedCourse } : course
-    );
-    await saveAllCourses(updatedCourses);
-    setCourses(updatedCourses);
+    const { data, error } = await supabase
+      .from('courses')
+      .update(updatedCourse)
+      .eq('id', courseId)
+      .select();
+    if (!error && data) {
+      setCourses(prev => prev.map(c => c.id === courseId ? data[0] : c));
+    }
+    return { data, error };
   };
 
   const deleteCourse = async (courseId: string) => {
-    const allCourses = await getAllCourses();
-    const updatedCourses = allCourses.filter(course => course.id !== courseId);
-    await saveAllCourses(updatedCourses);
-    setCourses(updatedCourses);
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('id', courseId);
+    if (!error) {
+      setCourses(prev => prev.filter(c => c.id !== courseId));
+    }
+    return { error };
   };
 
   const getCourseById = (courseId: string): Course | undefined => {
     return courses.find(course => course.id === courseId);
   };
 
-  return { 
-    courses, 
-    setCourses, 
-    addCourse, 
-    updateCourse, 
-    deleteCourse, 
-    getCourseById, 
-    loading 
+  return {
+    courses,
+    setCourses,
+    addCourse,
+    updateCourse,
+    deleteCourse,
+    getCourseById,
+    loading
   };
 }
 
@@ -920,34 +938,45 @@ export function useCategories() {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const schools = await getAllSchools();
-      // Map schools to category format for backward compatibility
-      const mappedCategories: Category[] = schools
-        .filter(school => school.isActive) // Only show active schools
-        .map(school => ({
-          id: school.id,
-          name: school.name,
-          description: school.description,
-          courseCount: school.courseCount
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*, courses: courses(count)', { count: 'exact' })
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        const mappedCategories: Category[] = (data || []).map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          courseCount: cat.courses?.length ?? 0,
         }));
-      setCategories(mappedCategories);
-      setLoading(false);
+        setCategories(mappedCategories);
+      } catch (err) {
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
     };
-
     fetchCategories();
   }, []);
 
   const refreshCategories = async () => {
-    const schools = await getAllSchools();
-    const mappedCategories: Category[] = schools
-      .filter(school => school.isActive)
-      .map(school => ({
-        id: school.id,
-        name: school.name,
-        description: school.description,
-        courseCount: school.courseCount
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*, courses: courses(count)', { count: 'exact' })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const mappedCategories: Category[] = (data || []).map((cat: any) => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        courseCount: cat.courses?.length ?? 0,
       }));
-    setCategories(mappedCategories);
+      setCategories(mappedCategories);
+    } catch (err) {
+      setCategories([]);
+    }
   };
 
   return { categories, setCategories, refreshCategories, loading };
@@ -1379,23 +1408,4 @@ export function useNotifications() {
     addReply, 
     loading 
   };
-}
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-)
-
-export const getUserCount = async () => {
-  const { count, error } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true });
-
-  if (error) {
-    console.error('Supabase error:', error)
-    return null
-  }
-
-  return count
 }
