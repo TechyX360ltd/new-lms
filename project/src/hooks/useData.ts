@@ -112,7 +112,7 @@ const checkSupabaseConnection = async () => {
 };
 
 // Course storage functions
-const getAllCourses = async () => {
+const getAllCourses = async (): Promise<Course[]> => {
   try {
     // Try to get courses from Supabase
     const isConnected = await checkSupabaseConnection();
@@ -135,6 +135,7 @@ const getAllCourses = async () => {
           title: course.title,
           description: course.description,
           instructor: course.instructor,
+          instructorId: '',
           category: course.category,
           format: course.format,
           duration: course.duration,
@@ -142,7 +143,7 @@ const getAllCourses = async () => {
           price: course.price,
           isPublished: course.is_published,
           enrolledCount: course.enrolled_count,
-          certificateTemplate: course.certificate_template,
+          certificateTemplate: course.certificatetemplate,
           createdAt: course.created_at,
           modules: course.modules?.map((module: any) => ({
             id: module.id,
@@ -184,6 +185,7 @@ const getAllCourses = async () => {
       title: 'Introduction to React',
       description: 'Learn the fundamentals of React development',
       instructor: 'Sarah Johnson',
+      instructorId: '',
       category: 'school-of-engineering',
       format: 'mixed',
       duration: 8,
@@ -195,6 +197,7 @@ const getAllCourses = async () => {
       price: 25000,
       isPublished: true,
       enrolledCount: 150,
+      certificateTemplate: course.certificatetemplate,
       createdAt: '2024-01-15T00:00:00Z',
     },
     {
@@ -202,6 +205,7 @@ const getAllCourses = async () => {
       title: 'Advanced JavaScript',
       description: 'Master advanced JavaScript concepts and patterns',
       instructor: 'Mike Chen',
+      instructorId: '',
       category: 'school-of-engineering',
       format: 'video',
       duration: 12,
@@ -212,6 +216,7 @@ const getAllCourses = async () => {
       price: 35000,
       isPublished: true,
       enrolledCount: 89,
+      certificateTemplate: course.certificatetemplate,
       createdAt: '2024-01-10T00:00:00Z',
     },
   ];
@@ -262,7 +267,7 @@ const getAllCourses = async () => {
   }
 };
 
-const saveAllCourses = async (courses: Course[]) => {
+const saveAllCourses = async (courses: Course[]): Promise<void> => {
   try {
     const isConnected = await checkSupabaseConnection();
     
@@ -293,7 +298,7 @@ const saveAllCourses = async (courses: Course[]) => {
               price: course.price,
               is_published: course.isPublished,
               enrolled_count: course.enrolledCount,
-              certificate_template: course.certificateTemplate,
+              certificatetemplate: course.certificateTemplate,
               updated_at: new Date().toISOString()
             })
             .eq('id', course.id);
@@ -315,7 +320,7 @@ const saveAllCourses = async (courses: Course[]) => {
               price: course.price,
               is_published: course.isPublished,
               enrolled_count: course.enrolledCount,
-              certificate_template: course.certificateTemplate,
+              certificatetemplate: course.certificateTemplate,
               created_at: course.createdAt
             });
           

@@ -36,7 +36,11 @@ export interface Course {
   isPublished: boolean;
   enrolledCount: number;
   createdAt: string;
+  /**
+   * Use 'certificateTemplate' for UI/state, and 'certificatetemplate' for DB sync (matches DB column).
+   */
   certificateTemplate?: 'default' | 'modern' | 'elegant';
+  certificatetemplate?: 'default' | 'modern' | 'elegant';
 }
 
 export interface Module {

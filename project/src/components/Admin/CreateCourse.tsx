@@ -488,11 +488,12 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
           id: lesson.id,
           title: lesson.title,
           content: lesson.content,
-          videoUrl: lesson.contentType === 'video' ? 'https://example.com/video' : undefined,
+          videoUrl: lesson.videoUrl,
           duration: lesson.duration,
           sort_order: lesson.sort_order
         }))),
         createdAt: new Date().toISOString(),
+        certificatetemplate: courseData.certificateTemplate,
       };
 
       await onSave(coursePayload);
@@ -732,56 +733,56 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
             {modules.map((module) => (
               <div key={module.id} className="mb-6 border rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={module.title}
+                        <input
+                          type="text"
+                          value={module.title}
                     onChange={e => updateModule(module.id, 'title', e.target.value)}
                     className="flex-1 px-4 py-2 text-lg border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Module Title"
-                  />
-                  <input
-                    type="text"
-                    value={module.description}
+                        />
+                        <input
+                          type="text"
+                          value={module.description}
                     onChange={e => updateModule(module.id, 'description', e.target.value)}
                     className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Module Description"
                   />
                   <button onClick={() => deleteModule(module.id)} className="text-red-600 hover:bg-red-50 rounded p-2 ml-2">
                     <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
+                    </button>
+                  </div>
                 <div className="ml-4">
                   <h4 className="font-semibold mb-2">Lessons</h4>
                   {module.lessons.map((lesson) => (
                     <div key={lesson.id} className="mb-4 p-3 bg-white rounded-lg border">
                       <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={lesson.title}
+                                  <input
+                                    type="text"
+                                    value={lesson.title}
                           onChange={e => updateLesson(module.id, lesson.id, 'title', e.target.value)}
                           className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Lesson Title"
                         />
-                        <select
-                          value={lesson.contentType}
+                                  <select
+                                    value={lesson.contentType}
                           onChange={e => updateLesson(module.id, lesson.id, 'contentType', e.target.value)}
                           className="px-2 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="text">Text</option>
-                          <option value="video">Video</option>
+                                  >
+                                    <option value="text">Text</option>
+                                    <option value="video">Video</option>
                           <option value="mixed">Mixed</option>
-                        </select>
+                                  </select>
                         <button onClick={() => deleteLesson(module.id, lesson.id)} className="text-red-600 hover:bg-red-50 rounded p-2 ml-2">
                           <Trash2 className="w-5 h-5" />
                         </button>
-                      </div>
+                                </div>
                       {/* ContentType logic */}
                       {(lesson.contentType === 'text' || lesson.contentType === 'mixed') && (
-                        <div className="mb-2">
+                                <div className="mb-2">
                           <div className="flex items-center gap-2 mb-1">
                             <FileText className="w-4 h-4 text-blue-500" />
                             <span className="font-semibold text-blue-700">Text Content</span>
-                          </div>
+                                  </div>
                           {/* Rich text formatting buttons */}
                           <div className="flex gap-2 mb-1">
                             <button type="button" onClick={() => formatText(module.id, lesson.id, 'bold')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
@@ -793,23 +794,23 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                             <button type="button" onClick={() => formatText(module.id, lesson.id, 'numbered')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">1.</button>
                             <button type="button" onClick={() => formatText(module.id, lesson.id, 'heading')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 font-bold">H2</button>
                             <button type="button" onClick={() => formatText(module.id, lesson.id, 'link')} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-blue-600">🔗</button>
-                          </div>
-                          <textarea
-                            id={`lesson-content-${module.id}-${lesson.id}`}
-                            value={lesson.content}
+                                </div>
+                                <textarea
+                                  id={`lesson-content-${module.id}-${lesson.id}`}
+                                  value={lesson.content}
                             onChange={e => updateLesson(module.id, lesson.id, 'content', e.target.value)}
                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
                             placeholder="Lesson Content (supports rich text formatting)"
                             rows={4}
-                          />
-                        </div>
-                      )}
+                                    />
+                                  </div>
+                                )}
                       {(lesson.contentType === 'video' || lesson.contentType === 'mixed') && (
                         <div className="mb-2">
                           <div className="flex items-center gap-2 mb-1">
                             <Video className="w-4 h-4 text-purple-500" />
                             <span className="font-semibold text-purple-700">Video Content</span>
-                          </div>
+                                    </div>
                           <button
                             type="button"
                             onClick={() => setVideoModal({ open: true, moduleId: module.id, lessonId: lesson.id })}
@@ -820,9 +821,9 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                           {lesson.videoUrl && (
                             <video src={lesson.videoUrl} controls className="w-full mt-2 rounded" />
                           )}
-                        </div>
-                      )}
-                    </div>
+                              </div>
+                            )}
+                          </div>
                   ))}
                   <button
                     type="button"
@@ -831,19 +832,19 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                   >
                     + Add Lesson
                   </button>
-                </div>
+                    </div>
               </div>
             ))}
           </div>
         </div>
 
-        <button
-          type="submit"
+          <button
+            type="submit"
           className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg mt-8 hover:bg-blue-700 transition-all duration-200"
-          disabled={isLoading}
-        >
+            disabled={isLoading}
+          >
           {isLoading ? 'Adding...' : 'Add Course'}
-        </button>
+          </button>
       </form>
 
       <VideoUploadModal
