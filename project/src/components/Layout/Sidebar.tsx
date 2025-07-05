@@ -61,6 +61,7 @@ export function Sidebar({}: SidebarProps) {
     { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
     { id: 'admin-events', label: 'My Events', icon: CalendarIcon, path: '/admin/events' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
+    { id: 'profile', label: 'Profile', icon: User, path: '/admin/profile' },
   ];
 
   // Instructor menu items

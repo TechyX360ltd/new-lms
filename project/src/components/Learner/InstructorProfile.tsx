@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { CheckCircle, UploadCloud } from 'lucide-react';
+import { CheckCircle, UploadCloud, Camera, X } from 'lucide-react';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 export function InstructorProfile() {
   const { user, updateUserProfile } = useAuth();
@@ -9,8 +10,13 @@ export function InstructorProfile() {
   const [payoutEmail, setPayoutEmail] = useState(user?.payoutEmail || '');
   const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [nationalIdUrl, setNationalIdUrl] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Load national ID from localStorage if present
@@ -33,21 +39,66 @@ export function InstructorProfile() {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Please select a valid image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('Image size must be less than 5MB');
+        return;
+      }
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file, 'lms-avatars');
+        setAvatar(result.secure_url);
+        setSuccessMessage('Profile photo uploaded successfully!');
+      } catch (err) {
+        setErrorMessage('Failed to upload image. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatar(null);
+    if (avatarInputRef.current) {
+      avatarInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    // Save to localStorage (or call updateUserProfile if available)
-    const updated = {
-      bio,
-      expertise,
-      payoutEmail,
-      nationalIdUrl,
-    };
-    localStorage.setItem('instructorProfile', JSON.stringify(updated));
-    if (updateUserProfile) {
-      updateUserProfile(updated);
+    setErrorMessage('');
+    setSuccessMessage('');
+    
+    try {
+      // Save to localStorage (or call updateUserProfile if available)
+      const updated = {
+        bio,
+        expertise,
+        payoutEmail,
+        nationalIdUrl,
+        avatar,
+      };
+      localStorage.setItem('instructorProfile', JSON.stringify(updated));
+      if (updateUserProfile) {
+        await updateUserProfile(updated);
+      }
+      setSuccessMessage('Profile updated successfully!');
+    } catch (error) {
+      setErrorMessage('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    setTimeout(() => setSaving(false), 1000);
   };
 
   return (
@@ -62,7 +113,83 @@ export function InstructorProfile() {
           <span className="text-yellow-600 text-sm font-medium">Pending Verification</span>
         )}
       </div>
+
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 mb-6">
+          <CheckCircle className="w-5 h-5 text-green-600" />
+          <p className="text-green-800 font-medium">{successMessage}</p>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3 mb-6">
+          <X className="w-5 h-5 text-red-600" />
+          <p className="text-red-800 font-medium">{errorMessage}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Avatar Upload Section */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <Camera className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="absolute -bottom-2 -right-2 flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                  title="Upload Photo"
+                  disabled={isLoading}
+                >
+                  <Camera className="w-4 h-4 text-white" />
+                </button>
+                {avatar && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    className="w-8 h-8 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                    title="Remove Photo"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <p className="text-sm text-gray-600">
+                Upload a profile photo to personalize your instructor profile.
+              </p>
+              {isLoading && (
+                <p className="text-sm text-blue-600 mt-1">Uploading...</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
           <textarea

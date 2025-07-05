@@ -28,6 +28,7 @@ import { InstructorProfile } from './components/Learner/InstructorProfile';
 import { InstructorDashboard } from './components/Instructor/InstructorDashboard';
 import { ToastProvider } from './components/Auth/ToastContext';
 import { CategoryManagement } from './components/Admin/CategoryManagement';
+import { AdminProfile } from './components/Admin/AdminProfile';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { InstructorProfilePage } from './components/Learner/InstructorProfilePage';
 import LearnerCalendarPage from './pages/LearnerCalendarPage';
@@ -221,6 +222,7 @@ function AppContent() {
           <Route path="payments" element={<PaymentManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="profile" element={<AdminProfile />} />
           <Route path="events" element={<AdminEventsPage />} />
           <Route path="schedule-session" element={<AdminScheduleSessionPage />} />
         </Route>
