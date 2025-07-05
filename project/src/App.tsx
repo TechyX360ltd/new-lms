@@ -30,6 +30,9 @@ import { ToastProvider } from './components/Auth/ToastContext';
 import { CategoryManagement } from './components/Admin/CategoryManagement';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { InstructorProfilePage } from './components/Learner/InstructorProfilePage';
+import LearnerCalendarPage from './pages/LearnerCalendarPage';
+import AdminEventsPage from './pages/AdminEventsPage';
+import AdminScheduleSessionPage from './pages/AdminScheduleSessionPage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -196,6 +199,7 @@ function AppContent() {
           <Route path="certificates" element={<Certificates />} />
           <Route path="progress" element={<Progress />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="calendar" element={<LearnerCalendarPage />} />
         </Route>
 
         {/* Admin Dashboard Routes */}
@@ -217,7 +221,27 @@ function AppContent() {
           <Route path="payments" element={<PaymentManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="events" element={<AdminEventsPage />} />
+          <Route path="schedule-session" element={<AdminScheduleSessionPage />} />
         </Route>
+
+        {/* Instructor Routes */}
+        <Route
+          path="/instructor/events"
+          element={
+            <ProtectedRoute allowedRoles={['instructor']}>
+              <AdminEventsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/instructor/schedule-session"
+          element={
+            <ProtectedRoute allowedRoles={['instructor']}>
+              <AdminScheduleSessionPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Course Viewer Route */}
         <Route path="/course/:courseId" element={<CourseViewer />} />

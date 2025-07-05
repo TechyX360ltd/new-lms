@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Save, 
   Settings as SettingsIcon, 
@@ -38,6 +38,32 @@ export function Settings() {
     maintenanceMode: false
   });
 
+  // Load general settings from Supabase on mount
+  useEffect(() => {
+    if (activeTab === 'general') {
+      (async () => {
+        setIsLoading(true);
+        setErrorMessage('');
+        try {
+          const { data, error } = await supabase
+            .from('settings')
+            .select('data')
+            .eq('id', 'general')
+            .single();
+          if (error && error.code !== 'PGRST116') throw error;
+          if (data && data.data) {
+            setGeneralSettings({ ...generalSettings, ...data.data });
+          }
+        } catch (error: any) {
+          setErrorMessage('Failed to load general settings.');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   // Appearance Settings
   const [appearanceSettings, setAppearanceSettings] = useState({
     theme: 'light',
@@ -47,6 +73,32 @@ export function Settings() {
     borderRadius: 'rounded',
     enableAnimations: true
   });
+
+  // Load appearance settings from Supabase on mount
+  useEffect(() => {
+    if (activeTab === 'appearance') {
+      (async () => {
+        setIsLoading(true);
+        setErrorMessage('');
+        try {
+          const { data, error } = await supabase
+            .from('settings')
+            .select('data')
+            .eq('id', 'appearance')
+            .single();
+          if (error && error.code !== 'PGRST116') throw error;
+          if (data && data.data) {
+            setAppearanceSettings({ ...appearanceSettings, ...data.data });
+          }
+        } catch (error: any) {
+          setErrorMessage('Failed to load appearance settings.');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Security Settings
   const [securitySettings, setSecuritySettings] = useState({
@@ -120,20 +172,41 @@ export function Settings() {
     setErrorMessage('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Save settings to localStorage for demo
-      const settingsKey = `${settingsType}Settings`;
-      const settingsValue = eval(settingsKey);
-      localStorage.setItem(settingsKey, JSON.stringify(settingsValue));
-
-      setSuccessMessage(`${settingsType.charAt(0).toUpperCase() + settingsType.slice(1)} settings saved successfully!`);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(''), 3000);
+      if (settingsType === 'general') {
+        const { error } = await supabase
+          .from('settings')
+          .upsert([
+            {
+              id: 'general',
+              data: generalSettings,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        if (error) throw error;
+        setSuccessMessage('General settings saved successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else if (settingsType === 'appearance') {
+        const { error } = await supabase
+          .from('settings')
+          .upsert([
+            {
+              id: 'appearance',
+              data: appearanceSettings,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        if (error) throw error;
+        setSuccessMessage('Appearance settings saved successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        // ... existing code for other settings (localStorage or future Supabase logic) ...
+        const settingsKey = `${settingsType}Settings`;
+        const settingsValue = eval(settingsKey);
+        localStorage.setItem(settingsKey, JSON.stringify(settingsValue));
+        setSuccessMessage(`${settingsType.charAt(0).toUpperCase() + settingsType.slice(1)} settings saved successfully!`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
     } catch (error) {
-      console.error(`Error saving ${settingsType} settings:`, error);
       setErrorMessage(`Failed to save ${settingsType} settings. Please try again.`);
     } finally {
       setIsLoading(false);

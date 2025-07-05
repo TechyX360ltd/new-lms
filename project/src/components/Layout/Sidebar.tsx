@@ -16,7 +16,8 @@ import {
   Building,
   Menu,
   X,
-  UserCheck
+  UserCheck,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -43,6 +44,7 @@ export function Sidebar({}: SidebarProps) {
     { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard/notifications' },
     { id: 'certificates', label: 'My Certificates', icon: Award, path: '/dashboard/certificates' },
     { id: 'progress', label: 'Progress', icon: BarChart3, path: '/dashboard/progress' },
+    { id: 'calendar', label: 'My Calendar', icon: CalendarIcon, path: '/dashboard/calendar' },
     { id: 'profile', label: 'Profile', icon: User, path: '/dashboard/profile' },
   ];
 
@@ -57,6 +59,7 @@ export function Sidebar({}: SidebarProps) {
     { id: 'categories', label: 'Categories', icon: FolderOpen, path: '/admin/categories' },
     { id: 'payments', label: 'Payments', icon: CreditCard, path: '/admin/payments' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
+    { id: 'admin-events', label: 'My Events', icon: CalendarIcon, path: '/admin/events' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
@@ -64,6 +67,7 @@ export function Sidebar({}: SidebarProps) {
   const instructorMenuItems: SidebarMenuItem[] = [
     { id: 'instructor-dashboard', label: 'Instructor Dashboard', icon: Home, path: '/instructor/dashboard' },
     { id: 'instructor-profile', label: 'Instructor Profile', icon: UserCheck, path: '/instructor/profile' },
+    { id: 'instructor-events', label: 'My Events', icon: CalendarIcon, path: '/instructor/events' },
   ];
 
   const menuItems =

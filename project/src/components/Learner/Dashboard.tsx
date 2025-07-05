@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Clock, Award, TrendingUp, Users, FolderOpen } from 'lucide-react';
+import { BookOpen, Clock, Award, TrendingUp, Users, FolderOpen, Calendar as CalendarIcon } from 'lucide-react';
 import { useCourses } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { WelcomeModal } from './WelcomeModal';
@@ -165,6 +165,18 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
             </div>
           );
         })}
+        {/* My Calendar Card */}
+        <button
+          onClick={() => navigate('/dashboard/calendar')}
+          className="bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl shadow-sm p-4 lg:p-6 border border-blue-100 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          style={{ minHeight: 120 }}
+        >
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-2">
+            <CalendarIcon className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-lg font-bold text-white">My Calendar</span>
+          <span className="text-xs text-blue-100 mt-1">View your live class schedule</span>
+        </button>
       </div>
 
       {/* Welcome Message for New Users */}
