@@ -109,7 +109,7 @@ export default function ScheduleSessionForm() {
       const start_time = form.date && form.time ? new Date(`${form.date}T${form.time}`) : null;
       const end_time = start_time && form.duration ? new Date(start_time.getTime() + Number(form.duration) * 60000) : null;
       // Insert into Supabase
-      const { error } = await supabase.from('live_sessions').insert([
+      const { data: sessionData, error } = await supabase.from('live_sessions').insert([
         {
           title: form.title,
           description: form.description,
@@ -122,8 +122,29 @@ export default function ScheduleSessionForm() {
           invitees: form.invitees,
           join_link: form.joinLink,
         },
-      ]);
+      ]).select();
       if (error) throw error;
+      // Insert notification for invitees
+      if (form.invitees && form.invitees.length > 0) {
+        const { error: notifError } = await supabase.from('notifications').insert([
+          {
+            title: 'You have been invited to a live session!',
+            message: `You are invited to "${form.title}" on ${form.date} at ${form.time}.`,
+            type: 'info',
+            priority: 'medium',
+            recipients: form.invitees,
+            sender_id: user?.id,
+            course_id: form.courseId,
+            event_id: sessionData?.[0]?.id || null,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        if (notifError) {
+          console.error('Failed to insert notification:', notifError);
+        } else {
+          console.log('Notification inserted for invitees:', form.invitees);
+        }
+      }
       setSuccess(true);
       setForm({
         courseId: '',

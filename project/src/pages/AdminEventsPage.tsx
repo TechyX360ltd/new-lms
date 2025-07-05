@@ -1,37 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CourseSessionCalendar from '../components/Course/CourseSessionCalendar';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
-
-// Mock all sessions (replace with backend fetch)
-const initialSessions = [
-  {
-    id: 1,
-    title: 'React Basics Live',
-    start: new Date(2024, 6, 10, 10, 0),
-    end: new Date(2024, 6, 10, 11, 0),
-    platform: 'Zoom',
-    instructor: 'Sarah Johnson',
-    description: 'Intro to React and Q&A',
-    joinLink: '#',
-    courseId: 'course-1',
-    course: 'React Basics',
-    participants: ['Jane Doe', 'John Smith'],
-  },
-  {
-    id: 2,
-    title: 'UI/UX Q&A',
-    start: new Date(2024, 6, 12, 14, 0),
-    end: new Date(2024, 6, 12, 15, 0),
-    platform: 'Google Meet',
-    instructor: 'Mike Chen',
-    description: 'Live Q&A on UI/UX',
-    joinLink: '#',
-    courseId: 'course-2',
-    course: 'UI/UX Design',
-    participants: ['Alice Johnson'],
-  },
-];
+import { supabase } from '../lib/supabase';
 
 function formatDate(date: Date) {
   return date.toLocaleDateString();
@@ -42,12 +13,68 @@ function formatTime(date: Date) {
 
 export default function AdminEventsPage() {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState(initialSessions);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewEvent, setViewEvent] = useState<any | null>(null);
   const [editEvent, setEditEvent] = useState<any | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<any | null>(null);
   const [page, setPage] = useState(1);
   const rowsPerPage = 5;
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      // Fetch all live sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('live_sessions')
+        .select('*');
+      if (sessionsError) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
+      // Fetch all users (for instructor and participants)
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email');
+      // Fetch all courses
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('courses')
+        .select('id, title');
+      if (usersError || coursesError) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
+      // Map sessions to table format
+      const mapped = (sessionsData || []).map((s: any) => {
+        const instructor = usersData.find((u: any) => u.id === s.instructor_id);
+        const instructorName = instructor ? `${instructor.first_name || ''} ${instructor.last_name || ''}`.trim() || instructor.email : s.instructor_id;
+        const course = coursesData.find((c: any) => c.id === s.course_id);
+        const courseTitle = course ? course.title : s.course_id;
+        const participants = (s.invitees || []).map((id: string) => {
+          const user = usersData.find((u: any) => u.id === id);
+          return user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : id;
+        });
+        return {
+          id: s.id,
+          title: s.title,
+          start: new Date(s.start_time),
+          end: s.end_time ? new Date(s.end_time) : new Date(s.start_time),
+          platform: s.platform,
+          instructor: instructorName,
+          description: s.description,
+          joinLink: s.join_link || '#',
+          courseId: s.course_id,
+          course: courseTitle,
+          participants,
+        };
+      });
+      setSessions(mapped);
+      setLoading(false);
+    })();
+  }, []);
+
   const pageCount = Math.ceil(sessions.length / rowsPerPage);
   const paginatedSessions = sessions.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 

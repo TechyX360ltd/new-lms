@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Course, Category, User, Payment, Assignment, Notification, NotificationReply } from '../types';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../components/Auth/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 // School interface (replacing Category)
 interface School {
@@ -1005,6 +1007,9 @@ export function usePayments() {
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  console.log('useNotifications hook mounted for user:', user?.id);
 
   // Helper function to format notifications
   const formatNotifications = async (notificationsData: any[]) => {
@@ -1119,9 +1124,7 @@ export function useNotifications() {
           schema: 'public',
           table: 'notifications'
         },
-        async (payload) => {
-          console.log('Real-time notification change:', payload);
-          
+        async (payload: any) => {
           // Fetch updated notifications when there's a change
           try {
             const { data: notificationsData, error } = await supabase
@@ -1132,18 +1135,19 @@ export function useNotifications() {
                 attachments:notification_attachments(*),
                 replies:notification_replies(*)
               `);
-            
             if (error) throw error;
-            
             if (notificationsData && notificationsData.length > 0) {
               const formattedNotifications = await formatNotifications(notificationsData);
-              
               setNotifications(formattedNotifications);
-              
               // Show toast for new notifications (only for INSERT events)
               if (payload.eventType === 'INSERT') {
-                // You can import and use your toast context here if needed
-                console.log('New notification received:', payload.new);
+                const notification = payload.new;
+                if (notification.recipients && user && notification.recipients.includes(user.id)) {
+                  console.log('New notification for this user:', notification);
+                  console.log('Current user ID:', user.id);
+                  console.log('Notification recipients:', notification.recipients);
+                  showToast(notification.title || 'New Notification', 'confirmation', 6000, notification.message);
+                }
               }
             }
           } catch (error) {
@@ -1158,7 +1162,7 @@ export function useNotifications() {
           schema: 'public',
           table: 'notification_recipients'
         },
-        async (payload) => {
+        async (payload: any) => {
           console.log('Real-time notification recipient change:', payload);
           
           // Fetch updated notifications when recipient status changes
