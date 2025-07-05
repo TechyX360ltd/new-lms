@@ -20,9 +20,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { useAppearance } from '../../context/AppearanceContext';
 
 export function Settings() {
   const { user, isSupabaseConnected } = useAuth();
+  const { reloadAppearance } = useAppearance();
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -132,6 +134,55 @@ export function Settings() {
     showUserProgress: true
   });
 
+  // Load user settings from Supabase on mount
+  useEffect(() => {
+    if (activeTab === 'users') {
+      (async () => {
+        setIsLoading(true);
+        setErrorMessage('');
+        try {
+          const { data, error } = await supabase
+            .from('settings')
+            .select('data')
+            .eq('id', 'user')
+            .single();
+          if (error && error.code !== 'PGRST116') throw error;
+          if (data && data.data) {
+            setUserSettings({ ...userSettings, ...data.data });
+          }
+        } catch (error: any) {
+          setErrorMessage('Failed to load user management settings.');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Live user stats
+  const [userStats, setUserStats] = useState({ total: 0, active: 0, admins: 0, loading: false, error: '' });
+  useEffect(() => {
+    if (activeTab === 'users') {
+      (async () => {
+        setUserStats(s => ({ ...s, loading: true, error: '' }));
+        try {
+          // Total users
+          const { count: total, error: err1 } = await supabase.from('users').select('*', { count: 'exact', head: true });
+          // Admins
+          const { count: admins, error: err2 } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin');
+          // Active users: for demo, count users with updated_at in last 30 days
+          const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const { count: active, error: err3 } = await supabase.from('users').select('*', { count: 'exact', head: true }).gte('updated_at', since);
+          if (err1 || err2 || err3) throw err1 || err2 || err3;
+          setUserStats({ total: total ?? 0, active: active ?? 0, admins: admins ?? 0, loading: false, error: '' });
+        } catch (e) {
+          setUserStats(s => ({ ...s, loading: false, error: 'Failed to load user stats.' }));
+        }
+      })();
+    }
+  }, [activeTab]);
+
   // Payment Settings
   const [paymentSettings, setPaymentSettings] = useState({
     currency: 'NGN',
@@ -197,6 +248,20 @@ export function Settings() {
           ]);
         if (error) throw error;
         setSuccessMessage('Appearance settings saved successfully!');
+        reloadAppearance();
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else if (settingsType === 'users') {
+        const { error } = await supabase
+          .from('settings')
+          .upsert([
+            {
+              id: 'user',
+              data: userSettings,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        if (error) throw error;
+        setSuccessMessage('User management settings saved successfully!');
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         // ... existing code for other settings (localStorage or future Supabase logic) ...
@@ -850,15 +915,15 @@ export function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="bg-white p-3 rounded-lg border border-indigo-200">
                   <p className="font-medium text-indigo-900">Total Users</p>
-                  <p className="text-2xl font-bold text-indigo-600">1,245</p>
+                  <p className="text-2xl font-bold text-indigo-600">{userStats.total}</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg border border-indigo-200">
                   <p className="font-medium text-indigo-900">Active Users</p>
-                  <p className="text-2xl font-bold text-indigo-600">876</p>
+                  <p className="text-2xl font-bold text-indigo-600">{userStats.active}</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg border border-indigo-200">
                   <p className="font-medium text-indigo-900">Admins</p>
-                  <p className="text-2xl font-bold text-indigo-600">12</p>
+                  <p className="text-2xl font-bold text-indigo-600">{userStats.admins}</p>
                 </div>
               </div>
             </div>

@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext';
+import { supabase } from '../../lib/supabase';
 
 interface RegisterFormProps {
   onToggleForm: () => void;
+}
+
+function useUserSettings() {
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase.from('settings').select('data').eq('id', 'user').single();
+      setSettings(data?.data || null);
+      setLoading(false);
+    })();
+  }, []);
+  return { settings, loading };
 }
 
 export function RegisterForm({ onToggleForm }: RegisterFormProps) {
@@ -35,11 +50,28 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
   const { register, isLoading, isSupabaseConnected } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { settings: userSettings, loading: userSettingsLoading } = useUserSettings();
+
+  useEffect(() => {
+    if (userSettings && userSettings.defaultUserRole) {
+      setFormData(prev => ({ ...prev, role: userSettings.defaultUserRole }));
+    }
+  }, [userSettings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
+    if (userSettingsLoading) {
+      setError('Loading registration settings...');
+      return;
+    }
+    if (userSettings && userSettings.allowSelfRegistration === false) {
+      setError('Registration is currently disabled.');
+      showToast('Registration is currently disabled.', 'error', 5000);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       showToast('Passwords do not match', 'error', 5000);
@@ -71,7 +103,7 @@ export function RegisterForm({ onToggleForm }: RegisterFormProps) {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.role,
+        role: userSettings?.defaultUserRole || formData.role,
         expertise: formData.role === 'instructor' ? formData.expertise : undefined,
         payoutEmail: formData.role === 'instructor' ? formData.payoutEmail : undefined,
       });

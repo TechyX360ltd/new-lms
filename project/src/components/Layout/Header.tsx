@@ -214,12 +214,18 @@ export function Header() {
             {/* User Profile - Responsive */}
             <div className="flex items-center gap-2 lg:gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <span className="text-white font-bold text-lg">
+                      {(user?.firstName?.[0] || '').toUpperCase()}{(user?.lastName?.[0] || '').toUpperCase()}
+                    </span>
+                  )}
                 </div>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900 truncate max-w-32 lg:max-w-none">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                <div className="hidden sm:block text-left">
+                  <div className="font-bold text-gray-900 leading-tight">{user?.firstName}</div>
+                  <div className="text-xs text-gray-500 capitalize">{user?.role}</div>
                 </div>
               </div>
               

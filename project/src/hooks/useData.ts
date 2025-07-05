@@ -103,59 +103,59 @@ const mockPayments: Payment[] = [
 // Check if Supabase is connected and fetch courses
 const fetchCoursesFromSupabase = async () => {
   try {
-    const { data: courses, error } = await supabase
-      .from('courses')
-      .select(`
-        *,
-        modules:modules(*),
-        lessons:lessons(*)
-      `);
-    
-    if (error) throw error;
-    
-    if (courses && courses.length > 0) {
-      // Format courses to match our app's structure
+      const { data: courses, error } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          modules:modules(*),
+          lessons:lessons(*)
+        `);
+      
+      if (error) throw error;
+      
+      if (courses && courses.length > 0) {
+        // Format courses to match our app's structure
       return courses.map((course: any) => ({
-        id: course.id,
-        title: course.title,
-        description: course.description,
-        instructor: course.instructor,
-        instructorId: '',
-        category: course.category,
-        format: course.format,
-        duration: course.duration,
-        thumbnail: course.thumbnail,
-        price: course.price,
-        isPublished: course.is_published,
-        enrolledCount: course.enrolled_count,
-        certificateTemplate: course.certificatetemplate,
-        createdAt: course.created_at,
-        modules: course.modules?.map((module: any) => ({
-          id: module.id,
-          title: module.title,
-          description: module.description,
-          sort_order: module.order,
-          lessons: course.lessons
-            ?.filter((lesson: any) => lesson.module_id === module.id)
-            .map((lesson: any) => ({
-              id: lesson.id,
-              title: lesson.title,
-              content: lesson.content,
-              videoUrl: lesson.video_url,
-              duration: lesson.duration,
-              sort_order: lesson.order
-            }))
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-        })),
-        lessons: course.lessons?.map((lesson: any) => ({
-          id: lesson.id,
-          title: lesson.title,
-          content: lesson.content,
-          videoUrl: lesson.video_url,
-          duration: lesson.duration,
-          sort_order: lesson.order
-        }))
-      }));
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor,
+          instructorId: '',
+          category: course.category,
+          format: course.format,
+          duration: course.duration,
+          thumbnail: course.thumbnail,
+          price: course.price,
+          isPublished: course.is_published,
+          enrolledCount: course.enrolled_count,
+          certificateTemplate: course.certificatetemplate,
+          createdAt: course.created_at,
+          modules: course.modules?.map((module: any) => ({
+            id: module.id,
+            title: module.title,
+            description: module.description,
+            sort_order: module.order,
+            lessons: course.lessons
+              ?.filter((lesson: any) => lesson.module_id === module.id)
+              .map((lesson: any) => ({
+                id: lesson.id,
+                title: lesson.title,
+                content: lesson.content,
+                videoUrl: lesson.video_url,
+                duration: lesson.duration,
+                sort_order: lesson.order
+              }))
+              .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          })),
+          lessons: course.lessons?.map((lesson: any) => ({
+            id: lesson.id,
+            title: lesson.title,
+            content: lesson.content,
+            videoUrl: lesson.video_url,
+            duration: lesson.duration,
+            sort_order: lesson.order
+          }))
+        }));
     }
   } catch (error) {
     console.error('Error fetching courses from Supabase:', error);
@@ -167,7 +167,7 @@ const fetchCoursesFromSupabase = async () => {
 const saveAllCourses = async (courses: Course[]): Promise<void> => {
   try {
     // Try to save to Supabase first
-    for (const course of courses) {
+      for (const course of courses) {
         // Check if course exists
         const { data: existingCourse, error: checkError } = await supabase
           .from('courses')
@@ -357,7 +357,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
             }
           }
         }
-      }
+    }
   } catch (error) {
     console.error('Error saving courses to Supabase:', error);
   }
@@ -369,29 +369,29 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
 const getAssignmentsForCourse = async (courseId: string): Promise<Assignment[]> => {
   try {
     // Try to get from Supabase first
-    const { data: assignments, error } = await supabase
-      .from('assignments')
-      .select('*')
-      .eq('course_id', courseId);
-    
-    if (error) throw error;
-    
-    if (assignments && assignments.length > 0) {
-      // Format assignments to match our app's structure
+      const { data: assignments, error } = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('course_id', courseId);
+      
+      if (error) throw error;
+      
+      if (assignments && assignments.length > 0) {
+        // Format assignments to match our app's structure
       return assignments.map((assignment: any) => ({
-        id: assignment.id,
-        title: assignment.title,
-        description: assignment.description,
-        instructions: assignment.instructions,
-        dueDate: assignment.due_date,
-        maxPoints: assignment.max_points,
-        allowedFileTypes: assignment.allowed_file_types,
-        maxFileSize: assignment.max_file_size,
-        moduleId: assignment.module_id,
-        courseId: assignment.course_id,
-        isRequired: assignment.is_required,
-        createdAt: assignment.created_at
-      }));
+          id: assignment.id,
+          title: assignment.title,
+          description: assignment.description,
+          instructions: assignment.instructions,
+          dueDate: assignment.due_date,
+          maxPoints: assignment.max_points,
+          allowedFileTypes: assignment.allowed_file_types,
+          maxFileSize: assignment.max_file_size,
+          moduleId: assignment.module_id,
+          courseId: assignment.course_id,
+          isRequired: assignment.is_required,
+          createdAt: assignment.created_at
+        }));
     }
   } catch (error) {
     console.error('Error fetching assignments from Supabase:', error);
@@ -407,61 +407,61 @@ const getAssignmentsForCourse = async (courseId: string): Promise<Assignment[]> 
 
 const saveAssignmentsForCourse = async (courseId: string, assignments: Assignment[]) => {
   try {
-    // For each assignment, update or insert into Supabase
-    for (const assignment of assignments) {
-      // Check if assignment exists
-      const { data: existingAssignment, error: checkError } = await supabase
-        .from('assignments')
-        .select('id')
-        .eq('id', assignment.id)
-        .maybeSingle();
-      
-      if (checkError) throw checkError;
-      
-      if (existingAssignment) {
-        // Update existing assignment
-        const { error: updateError } = await supabase
+      // For each assignment, update or insert into Supabase
+      for (const assignment of assignments) {
+        // Check if assignment exists
+        const { data: existingAssignment, error: checkError } = await supabase
           .from('assignments')
-          .update({
-            title: assignment.title,
-            description: assignment.description,
-            instructions: assignment.instructions,
-            due_date: assignment.dueDate,
-            max_points: assignment.maxPoints,
-            allowed_file_types: assignment.allowedFileTypes,
-            max_file_size: assignment.maxFileSize,
-            module_id: assignment.moduleId,
-            course_id: assignment.courseId,
-            is_required: assignment.isRequired,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', assignment.id);
+          .select('id')
+          .eq('id', assignment.id)
+          .maybeSingle();
         
-        if (updateError) throw updateError;
-      } else {
-        // Insert new assignment
-        const { error: insertError } = await supabase
-          .from('assignments')
-          .insert({
-            id: assignment.id,
-            title: assignment.title,
-            description: assignment.description,
-            instructions: assignment.instructions,
-            due_date: assignment.dueDate,
-            max_points: assignment.maxPoints,
-            allowed_file_types: assignment.allowedFileTypes,
-            max_file_size: assignment.maxFileSize,
-            module_id: assignment.moduleId,
-            course_id: assignment.courseId,
-            is_required: assignment.isRequired,
-            created_at: assignment.createdAt
-          });
+        if (checkError) throw checkError;
         
-        if (insertError) throw insertError;
+        if (existingAssignment) {
+          // Update existing assignment
+          const { error: updateError } = await supabase
+            .from('assignments')
+            .update({
+              title: assignment.title,
+              description: assignment.description,
+              instructions: assignment.instructions,
+              due_date: assignment.dueDate,
+              max_points: assignment.maxPoints,
+              allowed_file_types: assignment.allowedFileTypes,
+              max_file_size: assignment.maxFileSize,
+              module_id: assignment.moduleId,
+              course_id: assignment.courseId,
+              is_required: assignment.isRequired,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', assignment.id);
+          
+          if (updateError) throw updateError;
+        } else {
+          // Insert new assignment
+          const { error: insertError } = await supabase
+            .from('assignments')
+            .insert({
+              id: assignment.id,
+              title: assignment.title,
+              description: assignment.description,
+              instructions: assignment.instructions,
+              due_date: assignment.dueDate,
+              max_points: assignment.maxPoints,
+              allowed_file_types: assignment.allowedFileTypes,
+              max_file_size: assignment.maxFileSize,
+              module_id: assignment.moduleId,
+              course_id: assignment.courseId,
+              is_required: assignment.isRequired,
+              created_at: assignment.createdAt
+            });
+          
+          if (insertError) throw insertError;
+        }
       }
-    }
-    
-    return;
+      
+      return;
   } catch (error) {
     console.error('Error saving assignments to Supabase:', error);
   }
@@ -473,40 +473,40 @@ const saveAssignmentsForCourse = async (courseId: string, assignments: Assignmen
 // User storage functions
 const getAllUsersFromStorage = async (): Promise<User[]> => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        user_courses:user_courses(course_id, status)
-      `);
-    
-    if (error) throw error;
-    
-    if (users && users.length > 0) {
-      // Format users to match our app's structure
-      return users.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        bio: user.bio || '',
-        location: user.location || '',
-        occupation: user.occupation || '',
-        education: user.education || '',
-        avatar: user.avatar_url,
-        enrolledCourses: user.user_courses
-          ? user.user_courses
-              .filter((uc: any) => uc.status === 'enrolled')
-              .map((uc: any) => uc.course_id)
-          : [],
-        completedCourses: user.user_courses
-          ? user.user_courses
-              .filter((uc: any) => uc.status === 'completed')
-              .map((uc: any) => uc.course_id)
-          : [],
-        createdAt: user.created_at
-      }));
+      const { data: users, error } = await supabase
+        .from('users')
+        .select(`
+          *,
+          user_courses:user_courses(course_id, status)
+        `);
+      
+      if (error) throw error;
+      
+      if (users && users.length > 0) {
+        // Format users to match our app's structure
+        return users.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          phone: u.phone,
+          role: u.role,
+          bio: u.bio || '',
+          location: u.location || '',
+          occupation: u.occupation || '',
+          education: u.education || '',
+          avatar: u.avatar_url,
+          enrolledCourses: u.user_courses
+            ? u.user_courses
+                .filter((uc: any) => uc.status === 'enrolled')
+                .map((uc: any) => uc.course_id)
+            : [],
+          completedCourses: u.user_courses
+            ? u.user_courses
+                .filter((uc: any) => uc.status === 'completed')
+                .map((uc: any) => uc.course_id)
+            : [],
+          createdAt: u.created_at
+        }));
     }
   } catch (error) {
     console.error('Error fetching users from Supabase:', error);
@@ -523,48 +523,49 @@ const getAllUsersFromStorage = async (): Promise<User[]> => {
 // School storage functions - Updated to sync with Supabase
 const getAllSchools = async (): Promise<School[]> => {
   try {
-    const { data: schools, error } = await supabase
-      .from('schools')
-      .select('*');
-    
-    if (error) throw error;
-    
-    if (schools && schools.length > 0) {
-      // Format schools to match our app's structure
-      return schools.map(school => ({
-        id: school.id,
-        name: school.name,
-        description: school.description,
-        icon: school.icon,
-        color: school.color,
-        courseCount: school.course_count,
-        studentCount: school.student_count,
-        instructorCount: school.instructor_count,
-        isActive: school.is_active,
-        createdAt: school.created_at,
-        updatedAt: school.updated_at
-      }));
-    }
-    
-    // If no schools in Supabase, insert default schools
-    const { error: insertError } = await supabase
-      .from('schools')
-      .insert(mockSchools.map(school => ({
-        id: school.id,
-        name: school.name,
-        description: school.description,
-        icon: school.icon,
-        color: school.color,
-        course_count: school.courseCount,
-        student_count: school.studentCount,
-        instructor_count: school.instructorCount,
-        is_active: school.isActive,
-        created_at: school.createdAt
-      })));
-    
-    if (insertError) throw insertError;
-    
-    return mockSchools;
+      const { data: schools, error } = await supabase
+        .from('schools')
+        .select('*');
+      
+      if (error) throw error;
+      
+      if (schools && schools.length > 0) {
+        // Format schools to match our app's structure
+        const mappedSchools = (schools || []).map((school: any) => ({
+          id: school.id,
+          name: school.name,
+          description: school.description,
+          icon: school.icon,
+          color: school.color,
+          courseCount: school.course_count,
+          studentCount: school.student_count,
+          instructorCount: school.instructor_count,
+          isActive: school.is_active,
+          createdAt: school.created_at,
+          updatedAt: school.updated_at,
+        }));
+        return mappedSchools;
+      }
+      
+      // If no schools in Supabase, insert default schools
+      const { error: insertError } = await supabase
+        .from('schools')
+        .insert(mockSchools.map(school => ({
+          id: school.id,
+          name: school.name,
+          description: school.description,
+          icon: school.icon,
+          color: school.color,
+          course_count: school.courseCount,
+          student_count: school.studentCount,
+          instructor_count: school.instructorCount,
+          is_active: school.isActive,
+          created_at: school.createdAt
+        })));
+      
+      if (insertError) throw insertError;
+      
+      return mockSchools;
   } catch (error) {
     console.error('Error fetching schools from Supabase:', error);
   }
@@ -581,57 +582,57 @@ const getAllSchools = async (): Promise<School[]> => {
 
 const saveAllSchools = async (schools: School[]) => {
   try {
-    // For each school, update or insert into Supabase
-    for (const school of schools) {
-      // Check if school exists
-      const { data: existingSchool, error: checkError } = await supabase
-        .from('schools')
-        .select('id')
-        .eq('id', school.id)
-        .maybeSingle();
-      
-      if (checkError) throw checkError;
-      
-      if (existingSchool) {
-        // Update existing school
-        const { error: updateError } = await supabase
+      // For each school, update or insert into Supabase
+      for (const school of schools) {
+        // Check if school exists
+        const { data: existingSchool, error: checkError } = await supabase
           .from('schools')
-          .update({
-            name: school.name,
-            description: school.description,
-            icon: school.icon,
-            color: school.color,
-            course_count: school.courseCount,
-            student_count: school.studentCount,
-            instructor_count: school.instructorCount,
-            is_active: school.isActive,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', school.id);
+          .select('id')
+          .eq('id', school.id)
+          .maybeSingle();
         
-        if (updateError) throw updateError;
-      } else {
-        // Insert new school
-        const { error: insertError } = await supabase
-          .from('schools')
-          .insert({
-            id: school.id,
-            name: school.name,
-            description: school.description,
-            icon: school.icon,
-            color: school.color,
-            course_count: school.courseCount,
-            student_count: school.studentCount,
-            instructor_count: school.instructorCount,
-            is_active: school.isActive,
-            created_at: school.createdAt
-          });
+        if (checkError) throw checkError;
         
-        if (insertError) throw insertError;
+        if (existingSchool) {
+          // Update existing school
+          const { error: updateError } = await supabase
+            .from('schools')
+            .update({
+              name: school.name,
+              description: school.description,
+              icon: school.icon,
+              color: school.color,
+              course_count: school.courseCount,
+              student_count: school.studentCount,
+              instructor_count: school.instructorCount,
+              is_active: school.isActive,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', school.id);
+          
+          if (updateError) throw updateError;
+        } else {
+          // Insert new school
+          const { error: insertError } = await supabase
+            .from('schools')
+            .insert({
+              id: school.id,
+              name: school.name,
+              description: school.description,
+              icon: school.icon,
+              color: school.color,
+              course_count: school.courseCount,
+              student_count: school.studentCount,
+              instructor_count: school.instructorCount,
+              is_active: school.isActive,
+              created_at: school.createdAt
+            });
+          
+          if (insertError) throw insertError;
+        }
       }
-    }
-    
-    return;
+      
+      return;
   } catch (error) {
     console.error('Error saving schools to Supabase:', error);
   }
@@ -652,7 +653,7 @@ export function useCourses() {
         const supabaseCourses = await fetchCoursesFromSupabase();
         if (supabaseCourses) {
           setCourses(supabaseCourses);
-        } else {
+      } else {
           // Fallback to localStorage
           const storedCourses = localStorage.getItem('allCourses');
           if (storedCourses) {
@@ -917,14 +918,15 @@ export function useUsers() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        // TEMP: Bypass connection check for debugging
-        const { data: usersData, error } = await supabase.from('users').select('*');
+        // Select only columns that exist in the users table
+        const { data: usersData, error } = await supabase.from('users').select('id, first_name, last_name, email, phone, role, created_at, updated_at, is_approved, payout_email, expertise');
         if (error) throw error;
         console.log('Raw users from Supabase:', usersData);
-        const formattedUsers = (usersData || []).map(u => ({
+        const formattedUsers = (usersData || []).map((u: any) => ({
           ...u,
-          firstName: u.first_name,
-          lastName: u.last_name,
+          firstName: u.first_name || '',
+          lastName: u.last_name || '',
+          fullName: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
           isApproved: u.is_approved,
           payoutEmail: u.payout_email,
           createdAt: u.created_at,
@@ -964,26 +966,26 @@ export function usePayments() {
   useEffect(() => {
     const fetchPayments = async () => {
       try {
-        const { data: paymentsData, error } = await supabase
-          .from('payments')
-          .select('*');
-        
-        if (error) throw error;
-        
-        if (paymentsData && paymentsData.length > 0) {
-          // Format payments to match our app's structure
-          const formattedPayments = paymentsData.map(payment => ({
-            id: payment.id,
-            userId: payment.user_id,
-            courseId: payment.course_id,
-            amount: payment.amount,
-            status: payment.status,
-            createdAt: payment.created_at
-          }));
+          const { data: paymentsData, error } = await supabase
+            .from('payments')
+            .select('*');
           
-          setPayments(formattedPayments);
-          setLoading(false);
-          return;
+          if (error) throw error;
+          
+          if (paymentsData && paymentsData.length > 0) {
+            // Format payments to match our app's structure
+            const formattedPayments = paymentsData.map((payment: any) => ({
+              id: payment.id,
+              userId: payment.user_id,
+              courseId: payment.course_id,
+              amount: payment.amount,
+              status: payment.status,
+              createdAt: payment.created_at
+            }));
+            
+            setPayments(formattedPayments);
+            setLoading(false);
+            return;
         }
       } catch (error) {
         console.error('Error fetching payments from Supabase:', error);
@@ -1007,60 +1009,60 @@ export function useNotifications() {
   // Helper function to format notifications
   const formatNotifications = async (notificationsData: any[]) => {
     try {
-            // Get user data for sender names and recipient names
-            const { data: users, error: usersError } = await supabase
-              .from('users')
-              .select('id, name');
+      // Get user data for sender names and recipient names
+      // Only select columns that exist
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email');
+      if (usersError) throw usersError;
+      
+      // Format notifications to match our app's structure
+      const formattedNotifications = notificationsData.map((notification: any) => {
+        const sender = users?.find((u: any) => u.id === notification.sender_id);
+        
+        return {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          priority: notification.priority,
+          senderId: notification.sender_id,
+          senderName: sender ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.email || 'Unknown User' : 'Unknown User',
+          recipients: notification.recipients.map((recipient: any) => {
+            const user = users?.find((u: any) => u.id === recipient.user_id);
             
-            if (usersError) throw usersError;
+            return {
+              userId: recipient.user_id,
+              userName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown User' : 'Unknown User',
+              isRead: recipient.is_read,
+              readAt: recipient.read_at,
+              isStarred: recipient.is_starred,
+              starredAt: recipient.starred_at
+            };
+          }),
+          courseId: notification.course_id,
+          createdAt: notification.created_at,
+          attachments: notification.attachments.map((attachment: any) => ({
+            id: attachment.id,
+            name: attachment.name,
+            type: attachment.type,
+            size: attachment.size,
+            url: attachment.url
+          })),
+          replies: notification.replies.map((reply: any) => {
+            const replyUser = users?.find(u => u.id === reply.user_id);
             
-            // Format notifications to match our app's structure
-            const formattedNotifications = notificationsData.map(notification => {
-              const sender = users?.find(u => u.id === notification.sender_id);
-              
-              return {
-                id: notification.id,
-                title: notification.title,
-                message: notification.message,
-                type: notification.type,
-                priority: notification.priority,
-                senderId: notification.sender_id,
-                senderName: sender?.name || 'Unknown User',
-                recipients: notification.recipients.map((recipient: any) => {
-                  const user = users?.find(u => u.id === recipient.user_id);
-                  
-                  return {
-                    userId: recipient.user_id,
-                    userName: user?.name || 'Unknown User',
-                    isRead: recipient.is_read,
-                    readAt: recipient.read_at,
-                    isStarred: recipient.is_starred,
-                    starredAt: recipient.starred_at
-                  };
-                }),
-                courseId: notification.course_id,
-                createdAt: notification.created_at,
-                attachments: notification.attachments.map((attachment: any) => ({
-                  id: attachment.id,
-                  name: attachment.name,
-                  type: attachment.type,
-                  size: attachment.size,
-                  url: attachment.url
-                })),
-                replies: notification.replies.map((reply: any) => {
-                  const replyUser = users?.find(u => u.id === reply.user_id);
-                  
-                  return {
-                    id: reply.id,
-                    notificationId: reply.notification_id,
-                    userId: reply.user_id,
-                    userName: replyUser?.name || 'Unknown User',
-                    message: reply.message,
-                    createdAt: reply.created_at
-                  };
-                })
-              };
-            });
+            return {
+              id: reply.id,
+              notificationId: reply.notification_id,
+              userId: reply.user_id,
+              userName: replyUser?.name || 'Unknown User',
+              message: reply.message,
+              createdAt: reply.created_at
+            };
+          })
+        };
+      });
       
       return formattedNotifications;
     } catch (error) {
@@ -1085,10 +1087,10 @@ export function useNotifications() {
         
         if (notificationsData && notificationsData.length > 0) {
           const formattedNotifications = await formatNotifications(notificationsData);
-          
-          setNotifications(formattedNotifications);
-          setLoading(false);
-          return;
+            
+            setNotifications(formattedNotifications);
+            setLoading(false);
+            return;
         }
       } catch (error) {
         console.error('Error fetching notifications from Supabase:', error);
@@ -1192,33 +1194,33 @@ export function useNotifications() {
 
   const addNotification = async (newNotification: Notification) => {
     try {
-      // Insert notification
-      const { data: notification, error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          id: newNotification.id,
-          title: newNotification.title,
-          message: newNotification.message,
-          type: newNotification.type,
-          priority: newNotification.priority,
-          sender_id: newNotification.senderId,
-          course_id: newNotification.courseId,
-          scheduled_for: newNotification.scheduledFor,
-          created_at: newNotification.createdAt
-        })
-        .select()
-        .single();
-      
+        // Insert notification
+        const { data: notification, error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            id: newNotification.id,
+            title: newNotification.title,
+            message: newNotification.message,
+            type: newNotification.type,
+            priority: newNotification.priority,
+            sender_id: newNotification.senderId,
+            course_id: newNotification.courseId,
+            scheduled_for: newNotification.scheduledFor,
+            created_at: newNotification.createdAt
+          })
+          .select()
+          .single();
+        
       if (notificationError) {
         console.error('Supabase notification insert error:', notificationError);
         throw notificationError;
       }
-      
-      // Insert recipients
-      for (const recipient of newNotification.recipients) {
+        
+        // Insert recipients
+        for (const recipient of newNotification.recipients) {
         const recipientPayload: any = {
-            notification_id: notification.id,
-            user_id: recipient.userId,
+              notification_id: notification.id,
+              user_id: recipient.userId,
           is_read: recipient.isRead
         };
         if (recipient.readAt) recipientPayload.read_at = recipient.readAt;
@@ -1231,27 +1233,27 @@ export function useNotifications() {
           console.error('Supabase recipient insert error:', recipientError, recipientPayload);
           throw recipientError;
         }
-      }
-      
-      // Insert attachments if any
-      if (newNotification.attachments && newNotification.attachments.length > 0) {
-        for (const attachment of newNotification.attachments) {
-          const { error: attachmentError } = await supabase
-            .from('notification_attachments')
-            .insert({
-              id: attachment.id,
-              notification_id: notification.id,
-              name: attachment.name,
-              type: attachment.type,
-              size: attachment.size,
-              url: attachment.url
-            });
-          
-          if (attachmentError) throw attachmentError;
         }
-      }
-      
-      return;
+        
+        // Insert attachments if any
+        if (newNotification.attachments && newNotification.attachments.length > 0) {
+          for (const attachment of newNotification.attachments) {
+            const { error: attachmentError } = await supabase
+              .from('notification_attachments')
+              .insert({
+                id: attachment.id,
+                notification_id: notification.id,
+                name: attachment.name,
+                type: attachment.type,
+                size: attachment.size,
+                url: attachment.url
+              });
+            
+            if (attachmentError) throw attachmentError;
+          }
+        }
+        
+        return;
     } catch (error) {
       console.error('Error adding notification to Supabase:', error);
     }
@@ -1264,35 +1266,35 @@ export function useNotifications() {
 
   const markAsRead = async (notificationId: string, userId: string) => {
     try {
-      // Update notification recipient
-      const { error } = await supabase
-        .from('notification_recipients')
-        .update({
-          is_read: true,
-          read_at: new Date().toISOString()
-        })
-        .eq('notification_id', notificationId)
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      
-      // Update local state
-      const updatedNotifications = notifications.map(notification => {
-        if (notification.id === notificationId) {
-          return {
-            ...notification,
-            recipients: notification.recipients.map(recipient =>
-              recipient.userId === userId
-                ? { ...recipient, isRead: true, readAt: new Date().toISOString() }
-                : recipient
-            )
-          };
-        }
-        return notification;
-      });
-      
-      setNotifications(updatedNotifications);
-      return;
+        // Update notification recipient
+        const { error } = await supabase
+          .from('notification_recipients')
+          .update({
+            is_read: true,
+            read_at: new Date().toISOString()
+          })
+          .eq('notification_id', notificationId)
+          .eq('user_id', userId);
+        
+        if (error) throw error;
+        
+        // Update local state
+        const updatedNotifications = notifications.map(notification => {
+          if (notification.id === notificationId) {
+            return {
+              ...notification,
+              recipients: notification.recipients.map(recipient =>
+                recipient.userId === userId
+                  ? { ...recipient, isRead: true, readAt: new Date().toISOString() }
+                  : recipient
+              )
+            };
+          }
+          return notification;
+        });
+        
+        setNotifications(updatedNotifications);
+        return;
     } catch (error) {
       console.error('Error marking notification as read in Supabase:', error);
     }
@@ -1318,39 +1320,39 @@ export function useNotifications() {
 
   const markAsStarred = async (notificationId: string, userId: string, isStarred: boolean) => {
     try {
-      // Update notification recipient
-      const { error } = await supabase
-        .from('notification_recipients')
-        .update({
-          is_starred: isStarred,
-          starred_at: isStarred ? new Date().toISOString() : null
-        })
-        .eq('notification_id', notificationId)
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      
-      // Update local state
-      const updatedNotifications = notifications.map(notification => {
-        if (notification.id === notificationId) {
-          return {
-            ...notification,
-            recipients: notification.recipients.map(recipient =>
-              recipient.userId === userId
-                ? { 
-                    ...recipient, 
-                    isStarred, 
-                    starredAt: isStarred ? new Date().toISOString() : undefined 
-                  }
-                : recipient
-            )
-          };
-        }
-        return notification;
-      });
-      
-      setNotifications(updatedNotifications);
-      return;
+        // Update notification recipient
+        const { error } = await supabase
+          .from('notification_recipients')
+          .update({
+            is_starred: isStarred,
+            starred_at: isStarred ? new Date().toISOString() : null
+          })
+          .eq('notification_id', notificationId)
+          .eq('user_id', userId);
+        
+        if (error) throw error;
+        
+        // Update local state
+        const updatedNotifications = notifications.map(notification => {
+          if (notification.id === notificationId) {
+            return {
+              ...notification,
+              recipients: notification.recipients.map(recipient =>
+                recipient.userId === userId
+                  ? { 
+                      ...recipient, 
+                      isStarred, 
+                      starredAt: isStarred ? new Date().toISOString() : undefined 
+                    }
+                  : recipient
+              )
+            };
+          }
+          return notification;
+        });
+        
+        setNotifications(updatedNotifications);
+        return;
     } catch (error) {
       console.error('Error marking notification as starred in Supabase:', error);
     }
@@ -1380,32 +1382,32 @@ export function useNotifications() {
 
   const addReply = async (reply: NotificationReply) => {
     try {
-      // Insert reply
-      const { error } = await supabase
-        .from('notification_replies')
-        .insert({
-          id: reply.id,
-          notification_id: reply.notificationId,
-          user_id: reply.userId,
-          message: reply.message,
-          created_at: reply.createdAt
+        // Insert reply
+        const { error } = await supabase
+          .from('notification_replies')
+          .insert({
+            id: reply.id,
+            notification_id: reply.notificationId,
+            user_id: reply.userId,
+            message: reply.message,
+            created_at: reply.createdAt
+          });
+        
+        if (error) throw error;
+        
+        // Update local state
+        const updatedNotifications = notifications.map(notification => {
+          if (notification.id === reply.notificationId) {
+            return {
+              ...notification,
+              replies: [...(notification.replies || []), reply]
+            };
+          }
+          return notification;
         });
-      
-      if (error) throw error;
-      
-      // Update local state
-      const updatedNotifications = notifications.map(notification => {
-        if (notification.id === reply.notificationId) {
-          return {
-            ...notification,
-            replies: [...(notification.replies || []), reply]
-          };
-        }
-        return notification;
-      });
-      
-      setNotifications(updatedNotifications);
-      return;
+        
+        setNotifications(updatedNotifications);
+        return;
     } catch (error) {
       console.error('Error adding reply to Supabase:', error);
     }

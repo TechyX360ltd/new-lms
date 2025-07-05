@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import InviteeSelector from './InviteeSelector';
-
-const mockCourses = [
-  { id: 'course-1', title: 'React Basics' },
-  { id: 'course-2', title: 'UI/UX Design' },
-];
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 
 const platforms = [
   { value: 'zoom', label: 'Zoom' },
@@ -18,19 +15,8 @@ const recurrenceOptions = [
   { value: 'custom', label: 'Custom' },
 ];
 
-type Learner = { id: string; name: string; email: string };
-const learnersByCourse: { [courseId: string]: Learner[] } = {
-  'course-1': [
-    { id: 'learner-1', name: 'Jane Doe', email: 'jane@example.com' },
-    { id: 'learner-2', name: 'John Smith', email: 'john@example.com' },
-  ],
-  'course-2': [
-    { id: 'learner-3', name: 'Alice Johnson', email: 'alice@example.com' },
-    { id: 'learner-4', name: 'Bob Lee', email: 'bob@example.com' },
-  ],
-};
-
 export default function ScheduleSessionForm() {
+  const { user } = useAuth();
   const [form, setForm] = useState({
     courseId: '',
     title: '',
@@ -42,10 +28,68 @@ export default function ScheduleSessionForm() {
     recurrence: 'none',
     customRecurrence: '',
     invitees: [] as string[],
+    joinLink: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [learners, setLearners] = useState<any[]>([]);
+  const [learnersLoading, setLearnersLoading] = useState(false);
+
+  // Fetch courses from Supabase
+  useEffect(() => {
+    (async () => {
+      setCoursesLoading(true);
+      const { data, error } = await supabase.from('courses').select('id, title');
+      setCourses(data || []);
+      setCoursesLoading(false);
+    })();
+  }, []);
+
+  // Fetch learners for selected course
+  useEffect(() => {
+    if (!form.courseId) {
+      setLearners([]);
+      return;
+    }
+    setLearnersLoading(true);
+    (async () => {
+      // Get user IDs enrolled in this course
+      const { data: userCourses, error: ucError } = await supabase
+        .from('user_courses')
+        .select('user_id')
+        .eq('course_id', form.courseId);
+      if (ucError || !userCourses) {
+        setLearners([]);
+        setLearnersLoading(false);
+        return;
+      }
+      const userIds = userCourses.map((uc: any) => uc.user_id);
+      if (userIds.length === 0) {
+        setLearners([]);
+        setLearnersLoading(false);
+        return;
+      }
+      // Fetch user details
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+      if (usersError || !users) {
+        setLearners([]);
+        setLearnersLoading(false);
+        return;
+      }
+      setLearners(users.map((u: any) => ({
+        id: u.id,
+        name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+        email: u.email,
+      })));
+      setLearnersLoading(false);
+    })();
+  }, [form.courseId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -60,9 +104,26 @@ export default function ScheduleSessionForm() {
     setSubmitting(true);
     setError('');
     setSuccess(false);
-    // TODO: Integrate with backend to create session, recurrence, and invitees
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      // Compose start_time and end_time
+      const start_time = form.date && form.time ? new Date(`${form.date}T${form.time}`) : null;
+      const end_time = start_time && form.duration ? new Date(start_time.getTime() + Number(form.duration) * 60000) : null;
+      // Insert into Supabase
+      const { error } = await supabase.from('live_sessions').insert([
+        {
+          title: form.title,
+          description: form.description,
+          course_id: form.courseId,
+          instructor_id: user?.id || null,
+          start_time: start_time ? start_time.toISOString() : null,
+          end_time: end_time ? end_time.toISOString() : null,
+          platform: form.platform,
+          recurrence: form.recurrence === 'custom' ? form.customRecurrence : form.recurrence,
+          invitees: form.invitees,
+          join_link: form.joinLink,
+        },
+      ]);
+      if (error) throw error;
       setSuccess(true);
       setForm({
         courseId: '',
@@ -75,12 +136,14 @@ export default function ScheduleSessionForm() {
         recurrence: 'none',
         customRecurrence: '',
         invitees: [],
+        joinLink: '',
       });
-    }, 1000);
+    } catch (err: any) {
+      setError('Failed to schedule session. ' + (err?.message || ''));
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  // Get learners for the selected course
-  const learners = form.courseId ? learnersByCourse[form.courseId] || [] : [];
 
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-8 border border-gray-100">
@@ -95,9 +158,10 @@ export default function ScheduleSessionForm() {
             onChange={handleChange}
             className="w-full border rounded px-3 py-2"
             required
+            disabled={coursesLoading}
           >
-            <option value="">Select a course</option>
-            {mockCourses.map(course => (
+            <option value="">{coursesLoading ? 'Loading courses...' : 'Select a course'}</option>
+            {courses.map(course => (
               <option key={course.id} value={course.id}>{course.title}</option>
             ))}
           </select>
@@ -208,8 +272,23 @@ export default function ScheduleSessionForm() {
               selected={form.invitees}
               onChange={handleInviteesChange}
             />
+            {learnersLoading && <div className="text-sm text-gray-500 mt-1">Loading learners...</div>}
+            {!learnersLoading && learners.length === 0 && <div className="text-sm text-gray-500 mt-1">No learners enrolled in this course.</div>}
           </div>
         )}
+        {/* Join Link */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium mb-1">Join Link</label>
+          <input
+            type="url"
+            name="joinLink"
+            value={form.joinLink}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            placeholder="Paste Zoom/Google Meet link here"
+            required
+          />
+        </div>
         {/* Error/Success - full width */}
         {error && <div className="md:col-span-2 text-red-600 text-sm">{error}</div>}
         {success && <div className="md:col-span-2 text-green-600 text-sm">Session scheduled successfully!</div>}

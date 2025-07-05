@@ -583,14 +583,14 @@ function CreateNotificationModal({
                       <option value="instructor">Instructor</option>
                       <option value="admin">Admin</option>
                     </select>
-                    <input
+                        <input
                       type="text"
                       value={userSearch}
                       onChange={e => setUserSearch(e.target.value)}
                       placeholder="Search users by name or email..."
                       className="border border-gray-300 rounded px-2 py-1 text-sm flex-1"
                     />
-                  </div>
+                          </div>
                   <label className="block text-gray-700 font-medium mb-1">Select User(s)</label>
                   {/* Selected users as chips */}
                   <div className="flex flex-wrap gap-2 mb-2">

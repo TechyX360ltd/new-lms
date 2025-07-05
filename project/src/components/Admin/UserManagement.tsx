@@ -43,14 +43,13 @@ export function UserManagement() {
     return <AddUser onSave={handleCreateUser} onCancel={handleCancelCreate} />;
   }
 
-  const filteredUsers = users.filter(user => {
-    const fullName = `${user.firstName} ${user.lastName}`;
+  const filteredUsers = Array.isArray(users) ? users.filter(user => {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`;
     const matchesSearch = fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+                         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    
     return matchesSearch && matchesRole;
-  });
+  }) : [];
 
   return (
     <div className="space-y-8">
@@ -125,12 +124,12 @@ export function UserManagement() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                         <span className="text-white font-medium text-sm">
-                          {user.firstName[0]}{user.lastName[0]}
+                          {(user.firstName?.[0] || '')}{(user.lastName?.[0] || '')}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{user.firstName} {user.lastName}</p>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                        <p className="font-medium text-gray-900">{user.firstName || ''} {user.lastName || ''}</p>
+                        <p className="text-sm text-gray-500">{user.email || ''}</p>
                       </div>
                     </div>
                   </td>
@@ -138,11 +137,11 @@ export function UserManagement() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Mail className="w-4 h-4" />
-                        <span>{user.email}</span>
+                        <span>{user.email || ''}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Phone className="w-4 h-4" />
-                        <span>{user.phone}</span>
+                        <span>{user.phone || ''}</span>
                       </div>
                     </div>
                   </td>
@@ -152,15 +151,15 @@ export function UserManagement() {
                         ? 'bg-purple-100 text-purple-800' 
                         : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {user.role}
+                      {user.role || ''}
                     </span>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm text-gray-900">{user.enrolledCourses?.length || 0}</span>
+                    <span className="text-sm text-gray-900">{Array.isArray(user.enrolledCourses) ? user.enrolledCourses.length : 0}</span>
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-gray-600">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}
                     </span>
                   </td>
                   <td className="p-4">
