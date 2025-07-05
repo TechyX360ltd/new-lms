@@ -128,40 +128,10 @@ export function NotificationCenter() {
         </div>
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5" />
           Create Notification
-        </button>
-        <button 
-          onClick={() => {
-            const testNotification: Notification = {
-              id: Date.now().toString(),
-              title: 'Test Real-time Notification',
-              message: 'This is a test notification to demonstrate real-time functionality. Sent at ' + new Date().toLocaleTimeString(),
-              type: 'info',
-              priority: 'medium',
-              senderId: user!.id,
-              senderName: user!.firstName + ' ' + user!.lastName,
-              recipients: users.map(u => ({
-                userId: u.id,
-                userName: u.firstName + ' ' + u.lastName,
-                isRead: false,
-                readAt: undefined,
-                isStarred: false,
-                starredAt: undefined
-              })),
-              courseId: null,
-              createdAt: new Date().toISOString(),
-              attachments: [],
-              replies: []
-            };
-            addNotification(testNotification);
-          }}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
-        >
-          <Bell className="w-4 h-4" />
-          Test Real-time
         </button>
       </div>
 

@@ -124,7 +124,6 @@ export function Sidebar({}: SidebarProps) {
               alt="TECHYX 360" 
               className="h-8 w-auto"
             />
-            <span className="font-bold text-gray-900">TECHYX 360</span>
           </div>
         </div>
 
