@@ -19,7 +19,8 @@ import {
   User,
   Archive,
   Star,
-  StarOff
+  StarOff,
+  Wifi
 } from 'lucide-react';
 import { Notification, NotificationReply } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -35,11 +36,21 @@ export function LearnerNotificationCenter() {
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+  const [isRealTimeActive, setIsRealTimeActive] = useState(true);
 
   // Get notifications for current user
   const userNotifications = notifications.filter(notification =>
     notification.recipients.some(recipient => recipient.userId === user?.id)
   );
+
+  // Simulate real-time status (in a real app, this would come from the subscription status)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsRealTimeActive(prev => !prev);
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -183,6 +194,10 @@ export function LearnerNotificationCenter() {
               )}
             </div>
             Notifications
+            <div className="flex items-center gap-2 ml-4">
+              <div className={`w-2 h-2 rounded-full ${isRealTimeActive ? 'bg-green-500' : 'bg-gray-400'} animate-pulse`}></div>
+              <span className="text-sm text-gray-500 font-normal">Live</span>
+            </div>
           </h1>
           <p className="text-gray-600">Stay updated with important messages and announcements</p>
         </div>

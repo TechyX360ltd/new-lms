@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginForm } from './components/Auth/LoginForm';
 import { RegisterForm } from './components/Auth/RegisterForm';
+import { ResetPasswordPage } from './components/Auth/ResetPasswordPage';
 import { Header } from './components/Layout/Header';
 import { Sidebar } from './components/Layout/Sidebar';
 import { LearnerDashboard } from './components/Learner/Dashboard';
@@ -27,15 +28,13 @@ import { InstructorProfile } from './components/Learner/InstructorProfile';
 import { InstructorDashboard } from './components/Instructor/InstructorDashboard';
 import { ToastProvider } from './components/Auth/ToastContext';
 import { CategoryManagement } from './components/Admin/CategoryManagement';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { InstructorProfilePage } from './components/Learner/InstructorProfilePage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [showErrorToast, setShowErrorToast] = useState(false);
-  const [errorToastMessage, setErrorToastMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -48,10 +47,6 @@ function AuthPage() {
             setFormData={setFormData}
             error={error}
             setError={setError}
-            showErrorToast={showErrorToast}
-            setShowErrorToast={setShowErrorToast}
-            errorToastMessage={errorToastMessage}
-            setErrorToastMessage={setErrorToastMessage}
             showPassword={showPassword}
             setShowPassword={setShowPassword}
           />
@@ -82,7 +77,7 @@ function DashboardLayout() {
   if (viewingCourseId) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <CourseViewer courseId={viewingCourseId} onBack={handleBackFromCourse} />
+        <CourseViewer />
       </div>
     );
   }
@@ -159,6 +154,9 @@ function AppContent() {
           }
         />
 
+        {/* Reset Password Route */}
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
         {/* Instructor Routes */}
         <Route
           path="/instructor/dashboard"
@@ -220,6 +218,9 @@ function AppContent() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
+
+        {/* Course Viewer Route */}
+        <Route path="/course/:courseId" element={<CourseViewer />} />
 
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" replace />} />

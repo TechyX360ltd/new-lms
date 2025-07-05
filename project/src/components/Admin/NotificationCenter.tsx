@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, 
   Users, 
@@ -17,58 +17,48 @@ import {
   AlertTriangle,
   X,
   Paperclip,
-  Upload
+  Upload,
+  Wifi
 } from 'lucide-react';
 import { Notification, NotificationRecipient, User as UserType, Course } from '../../types';
-import { useUsers, useCourses } from '../../hooks/useData';
+import { useUsers, useCourses, useNotifications } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 
 export function NotificationCenter() {
   const { user } = useAuth();
   const { users } = useUsers();
   const { courses } = useCourses();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, addNotification, markAsRead, markAsStarred } = useNotifications();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const [isRealTimeActive, setIsRealTimeActive] = useState(true);
 
   useEffect(() => {
-    loadNotifications();
+    const interval = setInterval(() => {
+      setIsRealTimeActive(prev => !prev);
+    }, 2000);
+    
+    return () => clearInterval(interval);
   }, []);
-
-  const loadNotifications = () => {
-    const storedNotifications = localStorage.getItem('notifications');
-    if (storedNotifications) {
-      setNotifications(JSON.parse(storedNotifications));
-    }
-    setLoading(false);
-  };
-
-  const saveNotifications = (updatedNotifications: Notification[]) => {
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-  };
 
   const handleCreateNotification = (notificationData: Omit<Notification, 'id' | 'createdAt' | 'senderId' | 'senderName'>) => {
     const newNotification: Notification = {
       ...notificationData,
       id: Date.now().toString(),
       senderId: user!.id,
-      senderName: user!.name,
+      senderName: user!.firstName + ' ' + user!.lastName,
       createdAt: new Date().toISOString(),
     };
 
-    const updatedNotifications = [newNotification, ...notifications];
-    saveNotifications(updatedNotifications);
+    addNotification(newNotification);
     setShowCreateModal(false);
   };
 
   const handleDeleteNotification = (notificationId: string) => {
     if (window.confirm('Are you sure you want to delete this notification?')) {
-      const updatedNotifications = notifications.filter(n => n.id !== notificationId);
-      saveNotifications(updatedNotifications);
+      console.log('Delete notification:', notificationId);
     }
   };
 
@@ -123,19 +113,17 @@ export function NotificationCenter() {
     return matchesSearch && matchesType;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Notification Center</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+            Notification Center
+            <div className="flex items-center gap-2 ml-4">
+              <div className={`w-2 h-2 rounded-full ${isRealTimeActive ? 'bg-green-500' : 'bg-gray-400'} animate-pulse`}></div>
+              <span className="text-sm text-gray-500 font-normal">Live</span>
+            </div>
+          </h1>
           <p className="text-gray-600">Send messages and announcements to users</p>
         </div>
         <button 
@@ -144,6 +132,36 @@ export function NotificationCenter() {
         >
           <Plus className="w-4 h-4" />
           Create Notification
+        </button>
+        <button 
+          onClick={() => {
+            const testNotification: Notification = {
+              id: Date.now().toString(),
+              title: 'Test Real-time Notification',
+              message: 'This is a test notification to demonstrate real-time functionality. Sent at ' + new Date().toLocaleTimeString(),
+              type: 'info',
+              priority: 'medium',
+              senderId: user!.id,
+              senderName: user!.firstName + ' ' + user!.lastName,
+              recipients: users.map(u => ({
+                userId: u.id,
+                userName: u.firstName + ' ' + u.lastName,
+                isRead: false,
+                readAt: undefined,
+                isStarred: false,
+                starredAt: undefined
+              })),
+              courseId: null,
+              createdAt: new Date().toISOString(),
+              attachments: [],
+              replies: []
+            };
+            addNotification(testNotification);
+          }}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+        >
+          <Bell className="w-4 h-4" />
+          Test Real-time
         </button>
       </div>
 
@@ -315,6 +333,25 @@ function CreateNotificationModal({
 
   const [attachments, setAttachments] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userSearch, setUserSearch] = useState('');
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    }
+    if (userDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userDropdownOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -349,9 +386,9 @@ function CreateNotificationModal({
     let recipients: NotificationRecipient[] = [];
 
     if (formData.recipientType === 'all') {
-      recipients = users.filter(u => u.role === 'learner').map(user => ({
-        userId: user.id,
-        userName: user.name,
+      recipients = users.filter(u => u.role === 'learner').map(u => ({
+        userId: u.id,
+        userName: u.firstName + ' ' + u.lastName,
         isRead: false
       }));
     } else if (formData.recipientType === 'course') {
@@ -359,9 +396,9 @@ function CreateNotificationModal({
       if (course) {
         recipients = users
           .filter(u => u.enrolledCourses.includes(course.id))
-          .map(user => ({
-            userId: user.id,
-            userName: user.name,
+          .map(u => ({
+            userId: u.id,
+            userName: u.firstName + ' ' + u.lastName,
             isRead: false
           }));
       }
@@ -370,7 +407,7 @@ function CreateNotificationModal({
         const user = users.find(u => u.id === userId);
         return {
           userId,
-          userName: user?.name || 'Unknown User',
+          userName: user ? user.firstName + ' ' + user.lastName : 'Unknown User',
           isRead: false
         };
       });
@@ -412,6 +449,19 @@ function CreateNotificationModal({
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
+
+  // Filtered users for recipient selection
+  const filteredUsers = users.filter(user => {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const search = userSearch.toLowerCase();
+    const matchesRole = userRoleFilter === 'all' || user.role === userRoleFilter;
+    const matchesSearch =
+      !search ||
+      fullName.includes(search) ||
+      email.includes(search);
+    return matchesRole && matchesSearch;
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -551,28 +601,90 @@ function CreateNotificationModal({
               </div>
 
               {formData.recipientType === 'specific' && (
-                <div className="border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
-                  <div className="space-y-2">
-                    {users.filter(u => u.role === 'learner').map((user) => (
-                      <label key={user.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedUsers.includes(user.id)}
-                          onChange={() => handleUserToggle(user.id)}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                            {user.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                            <p className="text-xs text-gray-500">{user.email}</p>
-                          </div>
-                        </div>
-                      </label>
+                <div className="mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                    <select
+                      value={userRoleFilter}
+                      onChange={e => setUserRoleFilter(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-sm"
+                    >
+                      <option value="all">All Roles</option>
+                      <option value="learner">Learner</option>
+                      <option value="instructor">Instructor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                      placeholder="Search users by name or email..."
+                      className="border border-gray-300 rounded px-2 py-1 text-sm flex-1"
+                    />
+                  </div>
+                  <label className="block text-gray-700 font-medium mb-1">Select User(s)</label>
+                  {/* Selected users as chips */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {filteredUsers.filter(u => formData.selectedUsers.includes(u.id)).map(user => (
+                      <span key={user.id} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs flex items-center gap-1">
+                        {user.firstName} {user.lastName}
+                        <button
+                          type="button"
+                          className="ml-1 text-blue-500 hover:text-blue-700"
+                          onClick={() => setFormData({
+                            ...formData,
+                            selectedUsers: formData.selectedUsers.filter(id => id !== user.id)
+                          })}
+                          aria-label="Remove user"
+                        >
+                          &times;
+                        </button>
+                      </span>
                     ))}
                   </div>
+                  {/* Custom dropdown */}
+                  <div className="relative" ref={userDropdownRef}>
+                    <button
+                      type="button"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-left bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onClick={() => setUserDropdownOpen(v => !v)}
+                    >
+                      {formData.selectedUsers.length === 0 ? 'Click to select users...' : `${formData.selectedUsers.length} user(s) selected`}
+                    </button>
+                    {userDropdownOpen && (
+                      <div className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredUsers.length === 0 && (
+                          <div className="p-4 text-gray-500 text-sm text-center">No users found</div>
+                        )}
+                        {filteredUsers.map(user => {
+                          const checked = formData.selectedUsers.includes(user.id);
+                          return (
+                            <div
+                              key={user.id}
+                              className={`flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-blue-50 ${checked ? 'bg-blue-50' : ''}`}
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  selectedUsers: checked
+                                    ? formData.selectedUsers.filter(id => id !== user.id)
+                                    : [...formData.selectedUsers, user.id]
+                                });
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {}}
+                                className="accent-blue-600"
+                                onClick={e => e.stopPropagation()}
+                              />
+                              <span>{user.firstName} {user.lastName}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {errors.recipients && <p className="text-red-500 text-sm mt-1">{errors.recipients}</p>}
                 </div>
               )}
 

@@ -36,6 +36,7 @@ export interface Course {
   isPublished: boolean;
   enrolledCount: number;
   createdAt: string;
+  rating?: number;
   /**
    * Use 'certificateTemplate' for UI/state, and 'certificatetemplate' for DB sync (matches DB column).
    */

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Clock, Users, Star, Play, Eye, Award, CheckCircle } from 'lucide-react';
-import { useCourses } from '../../hooks/useData';
+import { useCourses, useUsers } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 
 interface CourseListProps {}
 
 export function CourseList({}: CourseListProps) {
   const { courses, loading } = useCourses();
+  const { users } = useUsers();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { onViewCourse } = useOutletContext<{ onViewCourse: (courseId: string) => void }>();
@@ -35,15 +36,11 @@ export function CourseList({}: CourseListProps) {
   };
 
   const handleContinueCourse = (courseId: string) => {
-    if (onViewCourse) {
-      onViewCourse(courseId);
-    }
+    navigate(`/course/${courseId}`);
   };
 
   const handleViewDetails = (courseId: string) => {
-    if (onViewCourse) {
-      onViewCourse(courseId);
-    }
+    navigate(`/course/${courseId}`);
   };
 
   const handleViewCertificate = () => {
@@ -171,7 +168,7 @@ export function CourseList({}: CourseListProps) {
         {currentCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentCourses.map((course) => (
-              <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
                 <div className="relative">
                   <img
                     src={course.thumbnail}
@@ -192,50 +189,56 @@ export function CourseList({}: CourseListProps) {
                     </div>
                   </div>
                 </div>
-                
-                <div className="p-4 lg:p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                    {course.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {course.description}
-                  </p>
-                  
+                <div className="p-4 lg:p-6 flex flex-col flex-1">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
+                      {(() => {
+                        const instructor = users.find(u => u.id === course.instructorId);
+                        if (instructor) {
+                          return (
+                            <div className="flex items-center gap-2 mb-1">
+                              {instructor.avatar ? (
+                                <img src={instructor.avatar} alt={instructor.firstName} className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-gray-200">
+                                  {instructor.firstName?.[0] || ''}{instructor.lastName?.[0] || ''}
+                                </div>
+                              )}
+                              <span className="font-bold text-gray-800 text-sm">{instructor.firstName} {instructor.lastName}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-1 ml-2">
+                      <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                      <span className="text-base font-semibold text-gray-900">{course.rating !== undefined ? course.rating.toFixed(1) : 'N/A'}</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-1">{course.description}</p>
                                      <div className="flex items-center justify-between mb-4">
                      <div className="flex items-center gap-2 text-sm text-gray-500">
                        <Users className="w-4 h-4" />
                        <span>{course.enrolledCount} students</span>
                      </div>
-                     <div className="flex items-center gap-1">
-                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                       <span className="text-sm font-medium text-gray-900">4.8</span>
                      </div>
-                   </div>
-
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-auto">
                     {activeTab === 'active' ? (
-                      <button
-                        onClick={() => handleContinueCourse(course.id)}
-                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Play className="w-4 h-4" />
-                        Continue
-                      </button>
+                      <Link to={`/course/${course.id}`} className="flex-1">
+                        <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                          <Play className="w-5 h-5" /> Continue
+                        </button>
+                      </Link>
                     ) : (
                       <button
                         onClick={handleViewCertificate}
-                        className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                       >
-                        <Award className="w-4 h-4" />
-                        View Certificate
+                        <Award className="w-4 h-4" /> View Certificate
                       </button>
                     )}
-                    <button
-                      onClick={() => handleViewDetails(course.id)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               </div>

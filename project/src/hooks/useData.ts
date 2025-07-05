@@ -993,11 +993,32 @@ export function useUsers() {
 
   useEffect(() => {
     const fetchUsers = async () => {
+      try {
+        // TEMP: Bypass connection check for debugging
+        const { data: usersData, error } = await supabase.from('users').select('*');
+        if (error) throw error;
+        console.log('Raw users from Supabase:', usersData);
+        const formattedUsers = (usersData || []).map(u => ({
+          ...u,
+          firstName: u.first_name,
+          lastName: u.last_name,
+          isApproved: u.is_approved,
+          payoutEmail: u.payout_email,
+          createdAt: u.created_at,
+        }));
+        setUsers(formattedUsers);
+        console.log('Mapped users for frontend:', formattedUsers);
+        setLoading(false);
+        return;
+      } catch (error) {
+        console.error('Error fetching users from Supabase:', error);
+      }
+      // Fallback to localStorage or mock data
       const allUsers = await getAllUsersFromStorage();
       setUsers(allUsers);
+      console.log('Fetched users from localStorage/mock:', allUsers);
       setLoading(false);
     };
-
     fetchUsers();
   }, []);
 
@@ -1064,24 +1085,9 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const isConnected = await checkSupabaseConnection();
-        
-        if (isConnected) {
-          const { data: notificationsData, error } = await supabase
-            .from('notifications')
-            .select(`
-              *,
-              recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
-              attachments:notification_attachments(*),
-              replies:notification_replies(*)
-            `);
-          
-          if (error) throw error;
-          
-          if (notificationsData && notificationsData.length > 0) {
+  // Helper function to format notifications
+  const formatNotifications = async (notificationsData: any[]) => {
+    try {
             // Get user data for sender names and recipient names
             const { data: users, error: usersError } = await supabase
               .from('users')
@@ -1136,6 +1142,33 @@ export function useNotifications() {
                 })
               };
             });
+      
+      return formattedNotifications;
+    } catch (error) {
+      console.error('Error formatting notifications:', error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const isConnected = await checkSupabaseConnection();
+        
+        if (isConnected) {
+          const { data: notificationsData, error } = await supabase
+            .from('notifications')
+            .select(`
+              *,
+              recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
+              attachments:notification_attachments(*),
+              replies:notification_replies(*)
+            `);
+          
+          if (error) throw error;
+          
+          if (notificationsData && notificationsData.length > 0) {
+            const formattedNotifications = await formatNotifications(notificationsData);
             
             setNotifications(formattedNotifications);
             setLoading(false);
@@ -1155,6 +1188,95 @@ export function useNotifications() {
     };
 
     fetchNotifications();
+  }, []);
+
+  // Real-time subscription for notifications
+  useEffect(() => {
+    const isConnected = checkSupabaseConnection();
+    
+    if (!isConnected) return;
+
+    // Subscribe to real-time changes on notifications table
+    const notificationsChannel = supabase
+      .channel('notifications_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications'
+        },
+        async (payload) => {
+          console.log('Real-time notification change:', payload);
+          
+          // Fetch updated notifications when there's a change
+          try {
+            const { data: notificationsData, error } = await supabase
+              .from('notifications')
+              .select(`
+                *,
+                recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
+                attachments:notification_attachments(*),
+                replies:notification_replies(*)
+              `);
+            
+            if (error) throw error;
+            
+            if (notificationsData && notificationsData.length > 0) {
+              const formattedNotifications = await formatNotifications(notificationsData);
+              
+              setNotifications(formattedNotifications);
+              
+              // Show toast for new notifications (only for INSERT events)
+              if (payload.eventType === 'INSERT') {
+                // You can import and use your toast context here if needed
+                console.log('New notification received:', payload.new);
+              }
+            }
+          } catch (error) {
+            console.error('Error updating notifications from real-time:', error);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notification_recipients'
+        },
+        async (payload) => {
+          console.log('Real-time notification recipient change:', payload);
+          
+          // Fetch updated notifications when recipient status changes
+          try {
+            const { data: notificationsData, error } = await supabase
+              .from('notifications')
+              .select(`
+                *,
+                recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
+                attachments:notification_attachments(*),
+                replies:notification_replies(*)
+              `);
+            
+            if (error) throw error;
+            
+            if (notificationsData && notificationsData.length > 0) {
+              const formattedNotifications = await formatNotifications(notificationsData);
+              
+              setNotifications(formattedNotifications);
+            }
+          } catch (error) {
+            console.error('Error updating notifications from real-time recipient change:', error);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(notificationsChannel);
+    };
   }, []);
 
   const addNotification = async (newNotification: Notification) => {
@@ -1179,22 +1301,28 @@ export function useNotifications() {
           .select()
           .single();
         
-        if (notificationError) throw notificationError;
+        if (notificationError) {
+          console.error('Supabase notification insert error:', notificationError);
+          throw notificationError;
+        }
         
         // Insert recipients
         for (const recipient of newNotification.recipients) {
-          const { error: recipientError } = await supabase
-            .from('notification_recipients')
-            .insert({
+          const recipientPayload: any = {
               notification_id: notification.id,
               user_id: recipient.userId,
-              is_read: recipient.isRead,
-              read_at: recipient.readAt,
-              is_starred: recipient.isStarred,
-              starred_at: recipient.starredAt
-            });
-          
-          if (recipientError) throw recipientError;
+            is_read: recipient.isRead
+          };
+          if (recipient.readAt) recipientPayload.read_at = recipient.readAt;
+          if (recipient.isStarred !== undefined) recipientPayload.is_starred = recipient.isStarred;
+          if (recipient.starredAt) recipientPayload.starred_at = recipient.starredAt;
+          const { error: recipientError } = await supabase
+            .from('notification_recipients')
+            .insert(recipientPayload);
+          if (recipientError) {
+            console.error('Supabase recipient insert error:', recipientError, recipientPayload);
+            throw recipientError;
+          }
         }
         
         // Insert attachments if any
@@ -1215,9 +1343,6 @@ export function useNotifications() {
           }
         }
         
-        // Refresh notifications
-        const updatedNotifications = [newNotification, ...notifications];
-        setNotifications(updatedNotifications);
         return;
       }
     } catch (error) {

@@ -75,6 +75,7 @@ interface AuthContextType extends AuthState {
   completeCourse: (courseId: string) => void;
   updateUserProfile?: (profileData: any) => void;
   isSupabaseConnected: boolean;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -697,6 +698,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Add password reset function
+  const resetPassword = async (email: string) => {
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      throw new Error('Please enter a valid email address.');
+    }
+    if (isSupabaseConnected) {
+      // Use Supabase password reset
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      if (error) throw error;
+      return;
+    }
+    // Fallback: simulate local reset (no email sent)
+    const allUsers = await getAllUsers();
+    const user = allUsers.find((u: any) => u.email === email);
+    if (!user) throw new Error('No account found with that email.');
+    // In a real app, you would send an email. Here, just resolve.
+    return;
+  };
+
   return (
     <AuthContext.Provider value={{
       ...state,
@@ -708,6 +730,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeCourse,
       updateUserProfile,
       isSupabaseConnected,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>
