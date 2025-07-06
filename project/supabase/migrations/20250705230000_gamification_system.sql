@@ -17,7 +17,9 @@ ADD COLUMN IF NOT EXISTS points integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS coins integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS current_streak integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS longest_streak integer DEFAULT 0,
-ADD COLUMN IF NOT EXISTS last_active_date date DEFAULT CURRENT_DATE;
+ADD COLUMN IF NOT EXISTS last_active_date date DEFAULT CURRENT_DATE,
+ADD COLUMN IF NOT EXISTS referral_code text UNIQUE NOT NULL DEFAULT 'T360-' || substr(md5(gen_random_uuid()::text), 1, 8),
+ADD COLUMN IF NOT EXISTS referred_by text REFERENCES users(referral_code);
 
 -- Create badges table
 CREATE TABLE IF NOT EXISTS badges (
@@ -375,4 +377,25 @@ $$;
 -- Grant necessary permissions
 GRANT EXECUTE ON FUNCTION award_points_and_check_badges TO public;
 GRANT EXECUTE ON FUNCTION update_user_streak TO public;
-GRANT EXECUTE ON FUNCTION get_leaderboard TO public; 
+GRANT EXECUTE ON FUNCTION get_leaderboard TO public;
+
+-- Referral System: Add referral_code and referred_by to users
+CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);
+CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);
+
+COMMENT ON COLUMN users.referral_code IS 'Unique referral code for each user, format T360-UNIQUEID';
+COMMENT ON COLUMN users.referred_by IS 'Referral code of the user who referred this user';
+
+-- Table to log successful referral events
+CREATE TABLE IF NOT EXISTS referral_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  referred_user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  course_id text,
+  coins_awarded integer DEFAULT 1000,
+  created_at timestamptz DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending',
+  UNIQUE(referred_user_id)
+);
+
+COMMENT ON TABLE referral_events IS 'Logs successful referrals and coin awards.'; 

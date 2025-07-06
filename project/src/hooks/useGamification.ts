@@ -10,9 +10,14 @@ import {
   GamificationEvent,
   GAMIFICATION_EVENTS
 } from '../types/gamification';
+import { useToast } from '../components/Auth/ToastContext';
+import CoinRain from '../components/Gamification/CoinRain';
+import { createPortal } from 'react-dom';
+import LeaderboardPopup from '../components/Gamification/LeaderboardPopup';
 
 export function useGamification() {
   const { user } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState<UserGamificationStats | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -20,6 +25,9 @@ export function useGamification() {
   const [userPurchases, setUserPurchases] = useState<UserPurchase[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCoinRain, setShowCoinRain] = useState(false);
+  const [showLeaderboardPopup, setShowLeaderboardPopup] = useState(false);
+  const [prevRank, setPrevRank] = useState<number | null>(null);
 
   // Load user stats
   const loadUserStats = useCallback(async () => {
@@ -208,6 +216,49 @@ export function useGamification() {
     }
   }, [user?.id, loadUserStats]);
 
+  // Award coins for learning actions
+  const awardCoinsOnLearning = useCallback(async (courseId: string, actionType: 'start' | 'continue' | 'open_active_course') => {
+    if (!user?.id) return;
+    try {
+      const result = await GamificationService.awardCoinsOnLearning(user.id, courseId, actionType);
+      if (result && result.coins) {
+        const isBigReward = actionType === 'course_completion';
+        if (isBigReward) setShowCoinRain(true);
+        toast.showToast(
+          `+${result.coins} coins!`,
+          isBigReward ? 'celebration' : 'success',
+          5000,
+          actionType === 'start' ? 'You started learning!' : actionType === 'continue' ? 'You continued your learning journey!' : actionType === 'open_active_course' ? 'You opened your active course!' : ''
+        );
+        await loadUserStats();
+        if (isBigReward) setTimeout(() => setShowCoinRain(false), 2500);
+      }
+    } catch (err) {
+      toast.showToast('Could not award coins', 'error');
+    }
+  }, [user?.id, toast, loadUserStats]);
+
+  // Handle referral reward on course purchase
+  const handleReferralReward = useCallback(async (courseId: string) => {
+    if (!user?.id) return;
+    try {
+      const result = await GamificationService.handleReferralReward(user.id, courseId);
+      if (result && result.message && result.message.includes('granted')) {
+        setShowCoinRain(true);
+        toast.showToast(
+          '+1000 coins!',
+          'celebration',
+          6000,
+          'Referral bonus! You earned coins for inviting a friend who purchased a course.'
+        );
+        await loadUserStats();
+        setTimeout(() => setShowCoinRain(false), 2500);
+      }
+    } catch (err) {
+      toast.showToast('Could not process referral reward', 'error');
+    }
+  }, [user?.id, toast, loadUserStats]);
+
   // Load initial data
   useEffect(() => {
     if (user?.id) {
@@ -225,6 +276,21 @@ export function useGamification() {
     }
   }, [user?.id, triggerDailyLogin]);
 
+  // Watch for leaderboard changes and trigger popup
+  useEffect(() => {
+    if (!user?.id || !leaderboard.length) return;
+    const userEntry = leaderboard.find((u) => u.user_id === user.id);
+    if (!userEntry) return;
+    if (prevRank === null) {
+      setPrevRank(userEntry.rank);
+      return;
+    }
+    if (userEntry.rank <= 10 && (prevRank > 10 || userEntry.rank < prevRank)) {
+      setShowLeaderboardPopup(true);
+    }
+    setPrevRank(userEntry.rank);
+  }, [leaderboard, user?.id]);
+
   return {
     // State
     stats,
@@ -234,6 +300,14 @@ export function useGamification() {
     userPurchases,
     loading,
     error,
+    showCoinRain,
+    CoinRain,
+    showLeaderboardPopup,
+    setShowLeaderboardPopup,
+    userRank: leaderboard.find((u) => u.user_id === user?.id)?.rank || null,
+    leaderboard,
+    userId: user?.id || '',
+    LeaderboardPopup,
 
     // Actions
     loadUserStats,
@@ -249,6 +323,8 @@ export function useGamification() {
     triggerProfileCompletion,
     triggerFirstCourse,
     triggerPerfectScore,
+    awardCoinsOnLearning,
+    handleReferralReward,
 
     // Utility functions
     clearError: () => setError(null),

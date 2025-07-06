@@ -209,75 +209,64 @@ export function StoreFront() {
           return (
             <div
               key={item.id}
-              className={`relative bg-white rounded-xl shadow-sm border-2 transition-all duration-200 hover:shadow-md ${
-                owned 
-                  ? 'border-green-200' 
-                  : canAfford 
-                    ? 'border-gray-200 hover:border-green-300 cursor-pointer' 
-                    : 'border-gray-200 opacity-60'
+              className={`relative min-h-[440px] flex flex-col justify-between items-center p-6 rounded-3xl shadow-xl border-4 border-transparent bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:border-yellow-300 cursor-pointer group ${
+                owned ? 'opacity-100' : canAfford ? '' : 'opacity-60'
               }`}
               onClick={() => !owned && canAfford && setSelectedItem(item)}
             >
-              {/* Owned Indicator */}
-              {owned && (
-                <div className="absolute top-2 right-2">
-                  <CheckCircle className="w-6 h-6 text-green-500" />
-                </div>
+              {/* Confetti/Sparkles for rare/epic */}
+              {item.rarity === 'epic' && (
+                <div className="absolute top-4 right-4 animate-pulse text-2xl">✨</div>
               )}
 
-              {/* Item Icon */}
-              <div className="p-6 text-center">
-                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
-                  owned ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gray-100'
-                }`}>
+              {/* Icon Badge */}
+              <div className="flex flex-col items-center w-full">
+                <div className="relative flex items-center justify-center w-24 h-24 mb-4 rounded-full bg-white shadow-lg border-4 border-yellow-200 group-hover:scale-110 transition-transform duration-300">
                   {item.icon_url ? (
                     <img 
                       src={item.icon_url} 
                       alt={item.name}
-                      className={`w-8 h-8 ${owned ? 'filter brightness-0 invert' : ''}`}
+                      className="w-16 h-16 object-contain"
                     />
                   ) : (
-                    <div className={`w-8 h-8 ${owned ? 'text-white' : 'text-gray-400'}`}>
+                    <div className="w-16 h-16 text-gray-400 flex items-center justify-center">
                       {getItemIcon(item.item_type)}
                     </div>
                   )}
-                </div>
-
-                {/* Item Info */}
-                <h3 className="font-semibold text-gray-900 mb-2">{item.name}</h3>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-
-                {/* Item Type Badge */}
-                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getItemTypeColor(item.item_type)}`}>
-                  {getItemIcon(item.item_type)}
-                  {item.item_type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                </div>
-
-                {/* Price */}
-                <div className="mt-3 flex items-center justify-center gap-2">
-                  <Coins className="w-4 h-4 text-yellow-500" />
-                  <span className="font-semibold text-gray-900">{item.price.toLocaleString()}</span>
-                </div>
-
-                {/* Status */}
-                <div className="mt-2 text-xs">
-                  {owned ? (
-                    <span className="text-green-600">Owned</span>
-                  ) : canAfford ? (
-                    <span className="text-blue-600">Available</span>
-                  ) : (
-                    <span className="text-red-600">Not enough coins</span>
+                  {/* Extra sparkles for epic */}
+                  {item.rarity === 'epic' && (
+                    <span className="absolute -top-2 -right-2 text-yellow-400 text-xl animate-bounce">🌟</span>
                   )}
                 </div>
+              </div>
 
-                {/* Gift Button (if not owned) */}
-                {!owned && (
-                  <button
-                    className="mt-3 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-medium hover:bg-yellow-200 flex items-center gap-1"
-                    onClick={e => { e.stopPropagation(); setGiftType('item'); setGiftItemId(item.id); setGiftModalOpen(true); }}
-                  >
-                    <Gift className="w-4 h-4" /> Gift
-                  </button>
+              {/* Item Name */}
+              <h3 className="mt-4 text-2xl font-extrabold text-pink-700 text-center w-full truncate drop-shadow">{item.name}</h3>
+
+              {/* Description */}
+              <p className="text-center text-gray-600 font-medium mb-2 w-full min-h-[40px]">{item.description}</p>
+
+              {/* Type Badge */}
+              <div className="inline-flex items-center gap-1 px-4 py-1 rounded-full text-sm font-bold bg-yellow-100 text-yellow-700 shadow mb-3">
+                {getItemIcon(item.item_type)}
+                {item.item_type.replace('_', ' ').toUpperCase()}
+              </div>
+
+              {/* Price Tag */}
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="inline-block bg-pink-200 text-pink-800 px-3 py-1 rounded-full font-bold shadow">
+                  <Coins className="w-5 h-5 inline" /> {item.price}
+                </span>
+              </div>
+
+              {/* Status */}
+              <div className="mt-2 text-lg font-bold">
+                {owned ? (
+                  <span className="text-green-600 flex items-center gap-1">✅ Owned</span>
+                ) : canAfford ? (
+                  <span className="text-blue-600 flex items-center gap-1">🪙 Available</span>
+                ) : (
+                  <span className="text-red-500 flex items-center gap-1">❌ Not enough coins</span>
                 )}
               </div>
             </div>
@@ -338,15 +327,15 @@ export function StoreFront() {
             
             <div className="text-center space-y-4">
               {/* Item Icon */}
-              <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+              <div className="w-24 h-24 mx-auto flex items-center justify-center mb-4">
                 {selectedItem.icon_url ? (
                   <img 
                     src={selectedItem.icon_url} 
                     alt={selectedItem.name}
-                    className="w-10 h-10"
+                    className="w-20 h-20 object-contain"
                   />
                 ) : (
-                  <div className="w-10 h-10 text-gray-400">
+                  <div className="w-20 h-20 text-gray-400 flex items-center justify-center">
                     {getItemIcon(selectedItem.item_type)}
                   </div>
                 )}

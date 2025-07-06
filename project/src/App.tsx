@@ -39,6 +39,7 @@ import { StoreManagement } from './components/Admin/StoreManagement';
 import { BadgeManagement } from './components/Admin/BadgeManagement';
 import { GamificationModeration } from './components/Admin/GamificationModeration';
 import { AdminSidebar } from './components/Admin/Sidebar';
+import ReferralsPage from './pages/ReferralsPage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -218,6 +219,7 @@ function AppContent() {
           <Route path="profile" element={<Profile />} />
           <Route path="calendar" element={<LearnerCalendarPage />} />
           <Route path="gamification" element={<GamificationDashboard />} />
+          <Route path="referrals" element={<ReferralsPage />} />
         </Route>
 
         {/* Admin Dashboard Routes */}

@@ -23,6 +23,9 @@ export interface User {
   currentStreak?: number;
   longestStreak?: number;
   lastActiveDate?: string;
+  // Referral fields
+  referral_code?: string;
+  referred_by?: string;
 }
 
 export interface Course {

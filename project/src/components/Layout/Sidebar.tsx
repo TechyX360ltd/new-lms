@@ -18,7 +18,8 @@ import {
   X,
   UserCheck,
   Calendar as CalendarIcon,
-  Trophy
+  Trophy,
+  Link as LinkIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -47,6 +48,7 @@ export function Sidebar({}: SidebarProps) {
     { id: 'progress', label: 'Progress', icon: BarChart3, path: '/dashboard/progress' },
     { id: 'calendar', label: 'My Calendar', icon: CalendarIcon, path: '/dashboard/calendar' },
     { id: 'gamification', label: 'Gamification', icon: Trophy, path: '/dashboard/gamification' },
+    { id: 'referrals', label: 'My Referrals', icon: LinkIcon, path: '/dashboard/referrals' },
     { id: 'profile', label: 'Profile', icon: User, path: '/dashboard/profile' },
   ];
 

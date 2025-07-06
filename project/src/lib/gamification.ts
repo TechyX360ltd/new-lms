@@ -423,4 +423,38 @@ export class GamificationService {
       { assessment_id: assessmentId }
     );
   }
+
+  /**
+   * Award coins for learning actions (start, continue, open_active_course)
+   */
+  static async awardCoinsOnLearning(userId: string, courseId: string, actionType: 'start' | 'continue' | 'open_active_course') {
+    try {
+      const res = await fetch('/functions/v1/award-coins-on-learning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, courseId, actionType })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error awarding coins on learning:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Handle referral reward when a referred user purchases a course
+   */
+  static async handleReferralReward(referredUserId: string, courseId: string) {
+    try {
+      const res = await fetch('/functions/v1/handle-referral-reward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referredUserId, courseId })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Error handling referral reward:', err);
+      throw err;
+    }
+  }
 } 

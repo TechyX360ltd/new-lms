@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, CheckCircle, XCircle, Award, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../../types/gamification';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 const defaultForm: Partial<Badge> = {
   name: '',
@@ -23,6 +24,7 @@ export function BadgeManagement() {
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
   const [form, setForm] = useState<Partial<Badge>>(defaultForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch badges
   const fetchBadges = async () => {
@@ -55,6 +57,20 @@ export function BadgeManagement() {
       ...prev,
       [name]: type === 'number' ? Number(value) : value,
     }));
+  };
+
+  // Add this handler for file upload
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await uploadToCloudinary(file, 'badges');
+      setForm((prev) => ({ ...prev, icon_url: result.secure_url }));
+    } catch (err) {
+      alert('Failed to upload image.');
+    }
+    setUploading(false);
   };
 
   // Save (add or update)
@@ -200,15 +216,19 @@ export function BadgeManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Icon URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icon Image</label>
                 <input
-                  type="text"
-                  name="icon_url"
-                  value={form.icon_url || ''}
-                  onChange={handleChange}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-500"
-                  placeholder="https://..."
                 />
+                {uploading && <div className="text-xs text-gray-500 mt-1">Uploading...</div>}
+                {form.icon_url && (
+                  <div className="mt-2">
+                    <img src={form.icon_url} alt="Icon preview" className="w-16 h-16 object-contain rounded border" />
+                  </div>
+                )}
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
