@@ -2,10 +2,10 @@ export interface Badge {
   id: string;
   name: string;
   description: string;
-  icon_url?: string;
+  icon_url: string;
   points_required: number;
-  category: 'achievement' | 'participation' | 'milestone' | 'special';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  category: string;
+  rarity: string;
   is_active: boolean;
   created_at: string;
   updated_at?: string;
@@ -22,12 +22,12 @@ export interface UserBadge {
 export interface StoreItem {
   id: string;
   name: string;
-  description?: string;
-  icon_url?: string;
+  description: string;
+  icon_url: string;
   price: number;
-  item_type: 'avatar_frame' | 'profile_background' | 'certificate_theme' | 'course_discount' | 'premium_feature';
+  item_type: string;
   is_active: boolean;
-  stock_quantity: number; // -1 means unlimited
+  stock_quantity: number;
   created_at: string;
   updated_at?: string;
 }
@@ -46,11 +46,12 @@ export interface GamificationEvent {
   id: string;
   user_id: string;
   event_type: string;
-  points_earned: number;
-  coins_earned: number;
+  points: number;
+  coins: number;
+  created_at: string;
+  status: string;
   description?: string;
   metadata?: Record<string, any>;
-  created_at: string;
 }
 
 export interface LeaderboardEntry {

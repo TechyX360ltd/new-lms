@@ -35,6 +35,10 @@ import LearnerCalendarPage from './pages/LearnerCalendarPage';
 import AdminEventsPage from './pages/AdminEventsPage';
 import AdminScheduleSessionPage from './pages/AdminScheduleSessionPage';
 import { GamificationDashboard } from './components/Gamification/GamificationDashboard';
+import { StoreManagement } from './components/Admin/StoreManagement';
+import { BadgeManagement } from './components/Admin/BadgeManagement';
+import { GamificationModeration } from './components/Admin/GamificationModeration';
+import { AdminSidebar } from './components/Admin/Sidebar';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -130,6 +134,17 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode,
   return <>{children}</>;
 }
 
+function AdminLayout() {
+  return (
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <main className="flex-1 bg-gray-50 p-8">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -210,7 +225,7 @@ function AppContent() {
           path="/admin"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <DashboardLayout />
+              <AdminLayout />
             </ProtectedRoute>
           }
         >
@@ -227,6 +242,9 @@ function AppContent() {
           <Route path="profile" element={<AdminProfile />} />
           <Route path="events" element={<AdminEventsPage />} />
           <Route path="schedule-session" element={<AdminScheduleSessionPage />} />
+          <Route path="store" element={<StoreManagement />} />
+          <Route path="badges" element={<BadgeManagement />} />
+          <Route path="moderation" element={<GamificationModeration />} />
         </Route>
 
         {/* Instructor Routes */}

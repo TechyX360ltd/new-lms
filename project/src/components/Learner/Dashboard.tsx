@@ -6,6 +6,7 @@ import { WelcomeModal } from './WelcomeModal';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
+import { useGamification } from '../../hooks/useGamification';
 
 interface LearnerDashboardProps {}
 
@@ -23,6 +24,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
   } | null>(null);
   const [statsLoading, setStatsLoading] = React.useState(false);
   const [statsError, setStatsError] = React.useState<string | null>(null);
+  const { stats: gamificationStats, loading: gamificationLoading, error: gamificationError } = useGamification();
 
   React.useEffect(() => {
     if (user?.role === 'learner') {
@@ -102,6 +104,30 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
       icon: TrendingUp,
       color: 'bg-orange-500',
     },
+    {
+      title: 'Points',
+      value: gamificationStats?.points ?? 0,
+      icon: TrendingUp,
+      color: 'bg-blue-700',
+    },
+    {
+      title: 'Coins',
+      value: gamificationStats?.coins ?? 0,
+      icon: Award,
+      color: 'bg-yellow-500',
+    },
+    {
+      title: 'Current Streak',
+      value: gamificationStats?.current_streak ?? 0,
+      icon: Clock,
+      color: 'bg-red-500',
+    },
+    {
+      title: 'Longest Streak',
+      value: gamificationStats?.longest_streak ?? 0,
+      icon: CalendarIcon,
+      color: 'bg-purple-700',
+    },
   ];
 
   const handleBrowseCourses = () => {
@@ -147,25 +173,21 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid (now includes gamification stats and My Calendar) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
         {statsArray.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-white rounded-xl shadow-sm p-4 lg:p-6 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-xl lg:text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-                <div className={`w-10 h-10 lg:w-12 lg:h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
-                  <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
-                </div>
+            <div key={index} className="bg-white rounded-xl shadow-sm p-4 lg:p-6 border border-gray-100 flex flex-col items-center justify-center">
+              <div className={`w-10 h-10 lg:w-12 lg:h-12 ${stat.color} rounded-lg flex items-center justify-center mb-2`}>
+                <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
               </div>
+              <p className="text-xs sm:text-sm text-gray-600 mb-1 text-center">{stat.title}</p>
+              <p className="text-xl lg:text-2xl font-bold text-gray-900 text-center">{stat.value}</p>
             </div>
           );
         })}
-        {/* My Calendar Card */}
+        {/* My Calendar Card at the end of the grid */}
         <button
           onClick={() => navigate('/dashboard/calendar')}
           className="bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl shadow-sm p-4 lg:p-6 border border-blue-100 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -179,36 +201,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
         </button>
       </div>
 
-      {/* Welcome Message for New Users */}
-      {stats?.enrolled_courses === 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 lg:p-8 border border-blue-100">
-          <div className="text-center">
-            <BookOpen className="w-12 lg:w-16 h-12 lg:h-16 text-blue-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Your Learning Journey!</h3>
-            <p className="text-gray-600 mb-6">
-              Welcome to TECHYX 360! You haven't enrolled in any courses yet. 
-              Browse our extensive catalog and start learning today.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
-                onClick={handleBrowseCourses}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                Browse Courses
-              </button>
-              <button
-                onClick={handleJoinCommunity}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Users className="w-5 h-5" />
-                Join Community
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Current Courses */}
+      {/* Continue Learning section immediately below the stats grid */}
       {enrolledCourses.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6 lg:p-8 border border-gray-100">
           <div className="flex items-center justify-between mb-6">
@@ -220,7 +213,6 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
               View All Courses →
             </button>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             {enrolledCourses.slice(0, 3).map((course) => (
               <div key={course.id} className="bg-gray-50 rounded-lg p-4 lg:p-6 border border-gray-200 hover:shadow-md transition-shadow">
@@ -248,6 +240,35 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Welcome Message for New Users */}
+      {stats?.enrolled_courses === 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 lg:p-8 border border-blue-100">
+          <div className="text-center">
+            <BookOpen className="w-12 lg:w-16 h-12 lg:h-16 text-blue-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Your Learning Journey!</h3>
+            <p className="text-gray-600 mb-6">
+              Welcome to TECHYX 360! You haven't enrolled in any courses yet. 
+              Browse our extensive catalog and start learning today.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button 
+                onClick={handleBrowseCourses}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Browse Courses
+              </button>
+              <button
+                onClick={handleJoinCommunity}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Users className="w-5 h-5" />
+                Join Community
+              </button>
+            </div>
           </div>
         </div>
       )}

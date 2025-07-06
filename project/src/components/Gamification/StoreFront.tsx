@@ -18,6 +18,7 @@ import {
 import { useGamification } from '../../hooks/useGamification';
 import { StoreItem, UserPurchase } from '../../types/gamification';
 import { STORE_ITEM_TYPES } from '../../types/gamification';
+import { GiftModal } from './GiftModal';
 
 export function StoreFront() {
   const { 
@@ -37,6 +38,9 @@ export function StoreFront() {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
+  const [giftModalOpen, setGiftModalOpen] = useState(false);
+  const [giftType, setGiftType] = useState<'coins' | 'item'>('coins');
+  const [giftItemId, setGiftItemId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     loadStoreItems();
@@ -134,11 +138,17 @@ export function StoreFront() {
           <p className="text-gray-600">Spend your coins on exclusive items and features</p>
         </div>
         
-        {/* User Balance */}
+        {/* User Balance and Gift Coins Button */}
         <div className="text-right">
           <div className="flex items-center gap-2 mb-1">
             <Coins className="w-5 h-5 text-yellow-500" />
             <span className="text-2xl font-bold text-gray-900">{stats?.coins || 0}</span>
+            <button
+              className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200"
+              onClick={() => { setGiftType('coins'); setGiftModalOpen(true); }}
+            >
+              Gift Coins
+            </button>
           </div>
           <div className="text-sm text-gray-600">Available Coins</div>
         </div>
@@ -259,6 +269,16 @@ export function StoreFront() {
                     <span className="text-red-600">Not enough coins</span>
                   )}
                 </div>
+
+                {/* Gift Button (if not owned) */}
+                {!owned && (
+                  <button
+                    className="mt-3 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-medium hover:bg-yellow-200 flex items-center gap-1"
+                    onClick={e => { e.stopPropagation(); setGiftType('item'); setGiftItemId(item.id); setGiftModalOpen(true); }}
+                  >
+                    <Gift className="w-4 h-4" /> Gift
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -363,6 +383,14 @@ export function StoreFront() {
           </div>
         </div>
       )}
+
+      {/* Gift Modal */}
+      <GiftModal
+        open={giftModalOpen}
+        onClose={() => setGiftModalOpen(false)}
+        giftType={giftType}
+        itemId={giftType === 'item' ? giftItemId : undefined}
+      />
     </div>
   );
 } 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { useGamification } from '../../hooks/useGamification';
 
 interface ProfileData {
   firstName: string;
@@ -74,6 +75,8 @@ export function Profile() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { stats: gamificationStats, loading: gamificationLoading } = useGamification();
 
   const validateProfileForm = () => {
     const newErrors: Record<string, string> = {};
@@ -411,7 +414,20 @@ export function Profile() {
 
               {/* User Info */}
               <div className="flex-1">
-                <h2 className="text-3xl font-bold mb-2">{profileData.firstName} {profileData.lastName}</h2>
+                <h2 className="text-3xl font-bold mb-2">
+                  {profileData.firstName} {profileData.lastName}
+                  {gamificationStats?.badges && gamificationStats.badges.length > 0 && (
+                    <span className="ml-4 align-middle inline-flex items-center gap-2">
+                      {gamificationStats.badges.map((userBadge: any, idx: number) =>
+                        userBadge.badge?.icon_url ? (
+                          <img key={userBadge.badge.id} src={userBadge.badge.icon_url} alt={userBadge.badge.name} className="inline w-8 h-8 object-contain" title={userBadge.badge.name} />
+                        ) : (
+                          <Award key={userBadge.badge?.id || userBadge.id} className="inline w-8 h-8 text-yellow-400" />
+                        )
+                      )}
+                    </span>
+                  )}
+                </h2>
                 <p className="text-blue-100 text-lg mb-1">{profileData.email}</p>
                 <p className="text-blue-200">{profileData.phone}</p>
                 <div className="mt-4 flex items-center gap-4">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Award, 
   Star, 
@@ -14,6 +14,8 @@ import {
 import { useGamification } from '../../hooks/useGamification';
 import { Badge, UserBadge } from '../../types/gamification';
 import { BADGE_CATEGORIES, BADGE_RARITIES } from '../../types/gamification';
+import Confetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
 
 export function BadgeCollection() {
   const { loadBadges, badges, stats, loading, error } = useGamification();
@@ -21,10 +23,23 @@ export function BadgeCollection() {
   const [filterRarity, setFilterRarity] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevEarnedBadges = useRef<number>(0);
+  const { width, height } = useWindowSize();
 
   useEffect(() => {
     loadBadges();
   }, [loadBadges]);
+
+  // Show confetti when a new badge is unlocked
+  useEffect(() => {
+    const earnedBadges = stats?.badges?.length || 0;
+    if (earnedBadges > prevEarnedBadges.current) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 4000);
+    }
+    prevEarnedBadges.current = earnedBadges;
+  }, [stats?.badges?.length]);
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -104,6 +119,7 @@ export function BadgeCollection() {
 
   return (
     <div className="space-y-6">
+      {showConfetti && <Confetti width={width} height={height} numberOfPieces={300} recycle={false} />}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
