@@ -34,6 +34,7 @@ import { InstructorProfilePage } from './components/Learner/InstructorProfilePag
 import LearnerCalendarPage from './pages/LearnerCalendarPage';
 import AdminEventsPage from './pages/AdminEventsPage';
 import AdminScheduleSessionPage from './pages/AdminScheduleSessionPage';
+import { GamificationDashboard } from './components/Gamification/GamificationDashboard';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -201,6 +202,7 @@ function AppContent() {
           <Route path="progress" element={<Progress />} />
           <Route path="profile" element={<Profile />} />
           <Route path="calendar" element={<LearnerCalendarPage />} />
+          <Route path="gamification" element={<GamificationDashboard />} />
         </Route>
 
         {/* Admin Dashboard Routes */}
@@ -247,6 +249,16 @@ function AppContent() {
 
         {/* Course Viewer Route */}
         <Route path="/course/:courseId" element={<CourseViewer />} />
+
+        {/* Gamification Dashboard Route */}
+        <Route
+          path="/gamification"
+          element={
+            <ProtectedRoute allowedRoles={['learner', 'instructor']}>
+              <GamificationDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" replace />} />

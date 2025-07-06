@@ -17,6 +17,12 @@ export interface User {
   payoutEmail?: string;
   expertise?: string;
   isApproved?: boolean;
+  // Gamification fields
+  points?: number;
+  coins?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActiveDate?: string;
 }
 
 export interface Course {
