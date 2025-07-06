@@ -107,62 +107,35 @@ const fetchCoursesFromSupabase = async () => {
   try {
       const { data: courses, error } = await supabase
         .from('courses')
-        .select(`
-          *,
-          modules:modules(*),
-          lessons:lessons(*)
-        `);
-      
+        .select('*');
       if (error) throw error;
-      
       if (courses && courses.length > 0) {
         // Format courses to match our app's structure
-      return courses.map((course: any) => ({
+        return courses.map((course: any) => ({
           id: course.id,
           title: course.title,
           description: course.description,
           instructor: course.instructor,
-          instructorId: '',
           category: course.category,
           format: course.format,
           duration: course.duration,
           thumbnail: course.thumbnail,
           price: course.price,
-          isPublished: course.is_published,
-          enrolledCount: course.enrolled_count,
-          certificateTemplate: course.certificatetemplate,
-          createdAt: course.created_at,
-          modules: course.modules?.map((module: any) => ({
-            id: module.id,
-            title: module.title,
-            description: module.description,
-            sort_order: module.order,
-            lessons: course.lessons
-              ?.filter((lesson: any) => lesson.module_id === module.id)
-              .map((lesson: any) => ({
-                id: lesson.id,
-                title: lesson.title,
-                content: lesson.content,
-                videoUrl: lesson.video_url,
-                duration: lesson.duration,
-                sort_order: lesson.order
-              }))
-              .sort((a: any, b: any) => a.sort_order - b.sort_order)
-          })),
-          lessons: course.lessons?.map((lesson: any) => ({
-            id: lesson.id,
-            title: lesson.title,
-            content: lesson.content,
-            videoUrl: lesson.video_url,
-            duration: lesson.duration,
-            sort_order: lesson.order
-          }))
+          is_published: course.is_published,
+          enrolled_count: course.enrolled_count,
+          created_at: course.created_at,
+          updated_at: course.updated_at,
+          view_count: course.view_count,
+          category_id: course.category_id,
+          instructor_id: course.instructor_id,
+          certificatetemplate: course.certificatetemplate,
+          certificate_template: course.certificate_template,
+          level: course.level
         }));
-    }
+      }
   } catch (error) {
     console.error('Error fetching courses from Supabase:', error);
   }
-  
   return null;
 };
 
@@ -192,9 +165,9 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
               duration: course.duration,
               thumbnail: course.thumbnail,
               price: course.price,
-              is_published: course.isPublished,
-              enrolled_count: course.enrolledCount,
-              certificatetemplate: course.certificateTemplate,
+              is_published: course.is_published,
+              enrolled_count: course.enrolled_count,
+              certificatetemplate: course.certificatetemplate,
               updated_at: new Date().toISOString()
             })
             .eq('id', course.id);
@@ -214,10 +187,10 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
               duration: course.duration,
               thumbnail: course.thumbnail,
               price: course.price,
-              is_published: course.isPublished,
-              enrolled_count: course.enrolledCount,
-              certificatetemplate: course.certificateTemplate,
-              created_at: course.createdAt
+              is_published: course.is_published,
+              enrolled_count: course.enrolled_count,
+              certificatetemplate: course.certificatetemplate,
+              created_at: course.created_at
             });
           
           if (insertError) throw insertError;
@@ -678,10 +651,10 @@ export function useCourses() {
                   { id: '2', title: 'Components', content: 'Understanding React components...', duration: 45, sort_order: 2 },
                 ],
                 price: 25000,
-                isPublished: true,
-                enrolledCount: 150,
-                certificateTemplate: 'default',
-                createdAt: '2024-01-15T00:00:00Z',
+                is_published: true,
+                enrolled_count: 150,
+                certificatetemplate: 'default',
+                created_at: '2024-01-15T00:00:00Z',
               },
               {
                 id: '2',
@@ -697,10 +670,10 @@ export function useCourses() {
                   { id: '3', title: 'Closures and Scope', content: 'Deep dive into closures...', videoUrl: 'https://example.com/video2', duration: 60, sort_order: 1 },
                 ],
                 price: 35000,
-                isPublished: true,
-                enrolledCount: 89,
-                certificateTemplate: 'default',
-                createdAt: '2024-01-10T00:00:00Z',
+                is_published: true,
+                enrolled_count: 89,
+                certificatetemplate: 'default',
+                created_at: '2024-01-10T00:00:00Z',
               },
             ];
             setCourses(defaultCourses);
@@ -754,6 +727,10 @@ export function useCourses() {
     return courses.find(course => course.id === courseId);
   };
 
+  const getCourseBySlug = (slug: string): Course | undefined => {
+    return courses.find(course => course.slug === slug);
+  };
+
   return {
     courses,
     setCourses,
@@ -761,6 +738,7 @@ export function useCourses() {
     updateCourse,
     deleteCourse,
     getCourseById,
+    getCourseBySlug,
     loading
   };
 }
@@ -862,7 +840,7 @@ export function useSchools() {
   };
 }
 
-// Updated Categories hook to sync with schools in Supabase
+// Updated Categories hook to only select fields from categories and avoid invalid join
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -872,14 +850,15 @@ export function useCategories() {
       try {
         const { data, error } = await supabase
           .from('categories')
-          .select('*, courses: courses(count)', { count: 'exact' })
+          .select('id, name, description')
+          .eq('is_active', true)
           .order('created_at', { ascending: false });
         if (error) throw error;
         const mappedCategories: Category[] = (data || []).map((cat: any) => ({
           id: cat.id,
           name: cat.name,
           description: cat.description,
-          courseCount: cat.courses?.length ?? 0,
+          courseCount: 0, // Remove or update if you add course counting later
         }));
         setCategories(mappedCategories);
       } catch (err) {
@@ -895,14 +874,15 @@ export function useCategories() {
     try {
       const { data, error } = await supabase
         .from('categories')
-        .select('*, courses: courses(count)', { count: 'exact' })
+        .select('id, name, description')
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
       const mappedCategories: Category[] = (data || []).map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         description: cat.description,
-        courseCount: cat.courses?.length ?? 0,
+        courseCount: 0,
       }));
       setCategories(mappedCategories);
     } catch (err) {

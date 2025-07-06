@@ -10,7 +10,6 @@ import {
   BarChart3, 
   Settings, 
   Bell, 
-  School, 
   CreditCard, 
   FileText, 
   Plus,
@@ -20,7 +19,8 @@ import {
   UserPlus,
   FolderOpen,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Gift
 } from 'lucide-react';
 
 export function AdminSidebar() {
@@ -109,18 +109,6 @@ export function AdminSidebar() {
           }
         >
           <FolderOpen className="w-5 h-5" /> Categories
-        </NavLink>
-
-        {/* School Management */}
-        <NavLink
-          to="/admin/schools"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-50'
-            }`
-          }
-        >
-          <School className="w-5 h-5" /> School Management
         </NavLink>
 
         {/* Progress Tracking */}
@@ -252,6 +240,18 @@ export function AdminSidebar() {
           }
         >
           <Settings className="w-5 h-5" /> Settings
+        </NavLink>
+
+        {/* Referral Management */}
+        <NavLink
+          to="/admin/referrals"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isActive ? 'bg-pink-100 text-pink-700' : 'text-gray-700 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Gift className="w-5 h-5" /> Referral Management
         </NavLink>
       </nav>
     </aside>

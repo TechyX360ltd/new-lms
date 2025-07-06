@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Clock, Users, Star, Play, Eye, Award, CheckCircle } from 'lucide-react';
+import { Clock, Users, Star, Play, Eye, Award, CheckCircle, Coins } from 'lucide-react';
 import { useCourses, useUsers } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
+import { useGamification } from '../../hooks/useGamification';
+import { supabase } from '../../lib/supabase';
 
 interface CourseListProps {}
 
@@ -14,6 +16,16 @@ export function CourseList({}: CourseListProps) {
   const navigate = useNavigate();
   const { onViewCourse } = useOutletContext<{ onViewCourse: (courseId: string) => void }>();
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const { stats, loadUserStats } = useGamification();
+  const [showCoinModal, setShowCoinModal] = useState(false);
+  const [coinModalCourse, setCoinModalCourse] = useState<any>(null);
+  const [coinModalLoading, setCoinModalLoading] = useState(false);
+  const [coinModalError, setCoinModalError] = useState<string | null>(null);
+  const [coinModalSuccess, setCoinModalSuccess] = useState<string | null>(null);
+
+  const COIN_CONVERSION = 100; // 100 coins = ₦1
+  const MIN_NAIRA = 1;
+  const MAX_NAIRA = 10000;
 
   if (loading) {
     return (
@@ -24,11 +36,11 @@ export function CourseList({}: CourseListProps) {
   }
 
   const enrolledCourses = courses.filter(course => 
-    user?.enrolledCourses.includes(course.id)
+    !!user && Array.isArray(user.enrolledCourses) && user.enrolledCourses.includes(course.id)
   );
 
   const completedCourses = courses.filter(course => 
-    user?.completedCourses?.includes(course.id)
+    !!user && Array.isArray(user.completedCourses) && user.completedCourses.includes(course.id)
   );
 
   const handleBrowseCourses = () => {
@@ -52,6 +64,31 @@ export function CourseList({}: CourseListProps) {
   };
 
   const currentCourses = activeTab === 'active' ? enrolledCourses : completedCourses;
+
+  const handlePayWithCoins = async (course: any) => {
+    setCoinModalLoading(true);
+    setCoinModalError(null);
+    setCoinModalSuccess(null);
+    try {
+      const { data, error } = await supabase.rpc('pay_with_coins', {
+        p_user_id: user.id,
+        p_course_id: course.id,
+      });
+      if (error || data?.error) {
+        throw new Error(data?.error || error.message || 'Could not enroll with coins.');
+      }
+      setCoinModalSuccess('Enrollment successful!');
+      loadUserStats();
+      setCoinModalLoading(false);
+      setTimeout(() => {
+        setShowCoinModal(false);
+        setCoinModalSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setCoinModalError(err.message || 'Could not enroll with coins.');
+      setCoinModalLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -167,82 +204,98 @@ export function CourseList({}: CourseListProps) {
         {/* Course Grid */}
         {currentCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentCourses.map((course) => (
-              <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                <div className="relative">
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  {activeTab === 'completed' && (
-                    <div className="absolute top-3 right-3">
-                      <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Completed
+            {currentCourses.map((course) => {
+              const eligible = course.price >= MIN_NAIRA && course.price <= MAX_NAIRA;
+              const coinPrice = course.price * COIN_CONVERSION;
+              const canAfford = (stats?.coins || 0) >= coinPrice;
+              return (
+                <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                  <div className="relative">
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="w-full h-48 object-cover"
+                    />
+                    {activeTab === 'completed' && (
+                      <div className="absolute top-3 right-3">
+                        <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Completed
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute bottom-3 left-3">
+                      <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs">
+                        {course.duration} hours
                       </div>
                     </div>
-                  )}
-                  <div className="absolute bottom-3 left-3">
-                    <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs">
-                      {course.duration} hours
-                    </div>
                   </div>
-                </div>
-                <div className="p-4 lg:p-6 flex flex-col flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
-                      {(() => {
-                        const instructor = users.find(u => u.id === course.instructorId);
-                        if (instructor) {
-                          return (
-                            <div className="flex items-center gap-2 mb-1">
-                              {instructor.avatar ? (
-                                <img src={instructor.avatar} alt={instructor.firstName} className="w-8 h-8 rounded-full object-cover border border-gray-200" />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-gray-200">
-                                  {instructor.firstName?.[0] || ''}{instructor.lastName?.[0] || ''}
-                                </div>
-                              )}
-                              <span className="font-bold text-gray-800 text-sm">{instructor.firstName} {instructor.lastName}</span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
+                  <div className="p-4 lg:p-6 flex flex-col flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
+                        {(() => {
+                          const instructor = users.find(u => u.id === course.instructor_id);
+                          if (instructor) {
+                            return (
+                              <div className="flex items-center gap-2 mb-1">
+                                {instructor.avatar ? (
+                                  <img src={instructor.avatar} alt={instructor.firstName} className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-gray-200">
+                                    {instructor.firstName?.[0] || ''}{instructor.lastName?.[0] || ''}
+                                  </div>
+                                )}
+                                <span className="font-bold text-gray-800 text-sm">{instructor.firstName} {instructor.lastName}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                        <span className="text-base font-semibold text-gray-900">{'rating' in course && typeof course.rating === 'number' ? course.rating.toFixed(1) : 'N/A'}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                      <span className="text-base font-semibold text-gray-900">{course.rating !== undefined ? course.rating.toFixed(1) : 'N/A'}</span>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-1">{course.description}</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Users className="w-4 h-4" />
+                        <span>{course.enrolled_count || 0} students</span>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-1">{course.description}</p>
-                                     <div className="flex items-center justify-between mb-4">
-                     <div className="flex items-center gap-2 text-sm text-gray-500">
-                       <Users className="w-4 h-4" />
-                       <span>{course.enrolledCount} students</span>
-                     </div>
-                     </div>
-                  <div className="flex gap-2 mt-auto">
-                    {activeTab === 'active' ? (
-                      <Link to={`/course/${course.id}`} className="flex-1">
-                        <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                          <Play className="w-5 h-5" /> Continue
+                    <div className="flex gap-2 mt-auto">
+                      {activeTab === 'active' ? (
+                        <Link to={`/course/${course.slug}`} className="flex-1">
+                          <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                            <Play className="w-5 h-5" /> Continue
+                          </button>
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={handleViewCertificate}
+                          className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Award className="w-4 h-4" /> View Certificate
                         </button>
-                      </Link>
-                    ) : (
-                      <button
-                        onClick={handleViewCertificate}
-                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Award className="w-4 h-4" /> View Certificate
-                      </button>
-                    )}
+                      )}
+                      {eligible && !!user && user.enrolledCourses && !user.enrolledCourses.includes(course.id) && (
+                        <button
+                          onClick={() => { setCoinModalCourse(course); setShowCoinModal(true); }}
+                          disabled={!canAfford}
+                          className={`w-full bg-yellow-500 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${canAfford ? 'hover:bg-yellow-600' : 'opacity-60 cursor-not-allowed'}`}
+                          title={canAfford ? 'Pay with coins' : 'Not enough coins'}
+                        >
+                          <Coins className="w-4 h-4" />
+                          {coinPrice.toLocaleString()} coins
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -274,6 +327,34 @@ export function CourseList({}: CourseListProps) {
           </div>
         )}
       </div>
+      {showCoinModal && coinModalCourse && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 text-center">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Pay with Coins</h3>
+            <div className="mb-4 text-gray-700">
+              Are you sure you want to enroll in <span className="font-bold">{coinModalCourse.title}</span> for <span className="font-bold text-yellow-600">{(coinModalCourse.price * COIN_CONVERSION).toLocaleString()}</span> gold coins?
+            </div>
+            {coinModalError && <div className="text-red-600 mb-2">{coinModalError}</div>}
+            {coinModalSuccess && <div className="text-green-600 mb-2">{coinModalSuccess}</div>}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowCoinModal(false)}
+                className="w-1/2 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                disabled={coinModalLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handlePayWithCoins(coinModalCourse)}
+                className="w-1/2 bg-yellow-500 text-white py-2 rounded-lg font-medium hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                disabled={coinModalLoading}
+              >
+                {coinModalLoading ? 'Processing...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

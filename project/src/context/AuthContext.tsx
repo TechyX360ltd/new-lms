@@ -47,10 +47,10 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'COMPLETE_COURSE':
       return {
         ...state,
-        user: state.user ? { 
-          ...state.user, 
+        user: state.user ? {
+          ...state.user,
           completedCourses: [...(state.user.completedCourses || []), action.payload],
-          enrolledCourses: state.user.enrolledCourses.filter(id => id !== action.payload)
+          enrolledCourses: state.user.enrolledCourses ? state.user.enrolledCourses.filter((id: string) => id !== action.payload) : [],
         } : null,
       };
     case 'UPDATE_PROFILE':
@@ -76,6 +76,7 @@ interface AuthContextType extends AuthState {
   updateUserProfile?: (profileData: any) => void;
   isSupabaseConnected: boolean;
   resetPassword: (email: string) => Promise<void>;
+  refreshUserEnrollments: (userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -217,11 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               occupation: userData.occupation || '',
               education: userData.education || '',
               avatar: userData.avatar_url,
+              referral_code: userData.referral_code,
+              referred_by: userData.referred_by,
+              coins: userData.coins || 0,
               enrolledCourses: enrollments
-                ? enrollments.filter(e => e.status === 'enrolled').map(e => e.course_id)
+                ? enrollments.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
                 : [],
               completedCourses: enrollments
-                ? enrollments.filter(e => e.status === 'completed').map(e => e.course_id)
+                ? enrollments.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
                 : [],
               createdAt: userData.created_at,
             };
@@ -246,7 +250,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           location: user.location || '',
           occupation: user.occupation || '',
           education: user.education || '',
-          avatar: user.avatar || null
+          avatar: user.avatar || null,
+          coins: user.coins || 0,
+          created_at: user.created_at || new Date().toISOString(),
         };
         dispatch({ type: 'LOGIN', payload: updatedUser });
       } else {
@@ -304,11 +310,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               occupation: userData.occupation || '',
               education: userData.education || '',
               avatar: userData.avatar_url,
+              referral_code: userData.referral_code,
+              referred_by: userData.referred_by,
+              coins: userData.coins || 0,
               enrolledCourses: enrollments
-                ? enrollments.filter(e => e.status === 'enrolled').map(e => e.course_id)
+                ? enrollments.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
                 : [],
               completedCourses: enrollments
-                ? enrollments.filter(e => e.status === 'completed').map(e => e.course_id)
+                ? enrollments.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
                 : [],
               createdAt: userData.created_at,
             };
@@ -394,15 +403,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         enrolledCourses: [],
         completedCourses: [],
         bio: userData.bio || '',
-        location: userData.location || '',
-        occupation: userData.occupation || '',
-        education: userData.education || '',
-        avatar: null,
-        payoutEmail: userData.role === 'instructor' ? userData.payoutEmail : undefined,
-        expertise: userData.role === 'instructor' ? userData.expertise : undefined,
-        isApproved: userData.role === 'instructor' ? false : undefined,
-        createdAt: new Date().toISOString(),
-        password: userData.password,
+        coins: userData.coins || 0,
+        created_at: new Date().toISOString(),
       };
       const updatedUsers = [...allUsers, newUser];
       localStorage.setItem('allUsers', JSON.stringify(updatedUsers));
@@ -596,7 +598,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const updatedUser = { 
           ...state.user, 
           enrolledCourses: enrollments
-            ? enrollments.filter(e => e.status === 'enrolled').map(e => e.course_id)
+            ? enrollments.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
             : state.user.enrolledCourses.filter(id => id !== courseId),
           completedCourses: [
             ...(state.user.completedCourses || []),
@@ -719,6 +721,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return;
   };
 
+  const refreshUserEnrollments = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select('course_id')
+      .eq('user_id', userId);
+    if (!error && data) {
+      const enrolledCourses = data.map((e: any) => e.course_id);
+      dispatch({ type: 'UPDATE_ENROLLMENT', payload: enrolledCourses });
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       ...state,
@@ -731,6 +744,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateUserProfile,
       isSupabaseConnected,
       resetPassword,
+      refreshUserEnrollments,
     }}>
       {children}
     </AuthContext.Provider>

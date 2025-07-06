@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, User, Bell, Search, X } from 'lucide-react';
+import { FaCoins } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useData';
 
@@ -25,7 +26,7 @@ export function Header() {
         .filter(notification =>
           notification.recipients.some(recipient => recipient.userId === user?.id)
         )
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5)
     : [];
 
@@ -119,6 +120,13 @@ export function Header() {
           
           {/* Right side - Notifications and User */}
           <div className="flex items-center gap-2 lg:gap-4">
+            {/* Coin Balance for Learners */}
+            {user?.role === 'learner' && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-200 mr-2">
+                <FaCoins className="text-yellow-500 w-5 h-5" />
+                <span className="font-bold text-yellow-700 text-sm">{user.coins ?? 0}</span>
+              </div>
+            )}
             {/* Enhanced Notification Bell for Learners */}
             {user?.role === 'learner' && (
               <div className="relative notification-dropdown">
@@ -173,7 +181,7 @@ export function Header() {
                                     </p>
                                     <div className="flex items-center gap-2 mt-2">
                                       <span className="text-xs text-gray-500">
-                                        {new Date(notification.createdAt).toLocaleDateString()}
+                                        {new Date(notification.created_at).toLocaleDateString()}
                                       </span>
                                       {!isRead && (
                                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

@@ -222,7 +222,7 @@ export function useGamification() {
     try {
       const result = await GamificationService.awardCoinsOnLearning(user.id, courseId, actionType);
       if (result && result.coins) {
-        const isBigReward = actionType === 'course_completion';
+        const isBigReward = result.coins >= 100; // Big reward for 100+ coins
         if (isBigReward) setShowCoinRain(true);
         toast.showToast(
           `+${result.coins} coins!`,
@@ -269,13 +269,6 @@ export function useGamification() {
     }
   }, [user?.id, loadUserStats, loadBadges, loadStoreItems, loadUserPurchases]);
 
-  // Auto-trigger daily login on component mount
-  useEffect(() => {
-    if (user?.id) {
-      triggerDailyLogin();
-    }
-  }, [user?.id, triggerDailyLogin]);
-
   // Watch for leaderboard changes and trigger popup
   useEffect(() => {
     if (!user?.id || !leaderboard.length) return;
@@ -305,7 +298,6 @@ export function useGamification() {
     showLeaderboardPopup,
     setShowLeaderboardPopup,
     userRank: leaderboard.find((u) => u.user_id === user?.id)?.rank || null,
-    leaderboard,
     userId: user?.id || '',
     LeaderboardPopup,
 

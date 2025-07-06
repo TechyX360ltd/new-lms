@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Clock, Users, Star, BookOpen, Play, FileText, Video, Image } from 'lucide-react';
+import { ArrowLeft, Clock, Users, Star, BookOpen, Play, FileText, Video, Image, FolderOpen } from 'lucide-react';
 import { Course } from '../../types';
 
 interface ViewCourseProps {
@@ -29,6 +29,18 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
     'school-of-business': 'School of Business',
   };
 
+  // Group lessons into modules or create default module
+  const modules = course.modules && course.modules.length > 0
+    ? course.modules
+    : [{ 
+        id: 'default', 
+        title: 'Course Content', 
+        description: 'All course materials and lessons', 
+        sort_order: 1, 
+        lessons: course.lessons || [], 
+        assignments: [] 
+      }];
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
@@ -51,11 +63,11 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
           />
           <div className="absolute top-4 right-4">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              course.isPublished 
+              course.is_published 
                 ? 'bg-green-100 text-green-800' 
                 : 'bg-yellow-100 text-yellow-800'
             }`}>
-              {course.isPublished ? 'Published' : 'Draft'}
+              {course.is_published ? 'Published' : 'Draft'}
             </span>
           </div>
         </div>
@@ -73,15 +85,15 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-600">{course.enrolledCount} students</span>
+                  <span className="text-gray-600">{course.enrolled_count} students</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
                   <span className="text-gray-600">4.8 rating</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-600">{course.lessons.length} lessons</span>
+                  <FolderOpen className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-600">{modules.length} modules</span>
                 </div>
               </div>
             </div>
@@ -96,7 +108,7 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">School</span>
-                    <p className="text-gray-900">{courseSchools[course.category as keyof typeof courseSchools] || course.category}</p>
+                    <p className="text-gray-900">{courseSchools[course.category_id as keyof typeof courseSchools] || course.category_id}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Format</span>
@@ -108,7 +120,7 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">Created</span>
-                    <p className="text-gray-900">{new Date(course.createdAt).toLocaleDateString()}</p>
+                    <p className="text-gray-900">{new Date(course.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
@@ -117,56 +129,99 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
         </div>
       </div>
 
-      {/* Course Content */}
+      {/* Course Modules */}
       <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Content</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Modules</h2>
         
-        {course.lessons.length === 0 ? (
+        {modules.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>No lessons have been added to this course yet.</p>
+            <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <p>No modules have been added to this course yet.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {course.lessons.map((lesson, index) => (
-              <div key={lesson.id} className="border border-gray-200 rounded-lg p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{lesson.title}</h3>
-                      <div className="flex items-center gap-4 mt-1">
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          {getContentTypeIcon('text')}
-                          <span className="capitalize">Text Content</span>
-                        </div>
-                        {lesson.duration && (
-                          <div className="flex items-center gap-1 text-sm text-gray-500">
-                            <Clock className="w-4 h-4" />
-                            <span>{lesson.duration} min</span>
-                          </div>
-                        )}
-                        {lesson.videoUrl && (
-                          <div className="flex items-center gap-1 text-sm text-blue-600">
-                            <Play className="w-4 h-4" />
-                            <span>Video Available</span>
-                          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {modules.map((module, index) => {
+              const moduleLessons = module.lessons || [];
+              const moduleAssignments = module.assignments || [];
+              const videoLessons = moduleLessons.filter(lesson => lesson.videoUrl).length;
+              const textLessons = moduleLessons.length - videoLessons;
+              
+              return (
+                <div key={module.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900">{module.title}</h3>
+                        {module.description && (
+                          <p className="text-sm text-gray-600 mt-1">{module.description}</p>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                {lesson.content && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Lesson Content:</h4>
-                    <p className="text-gray-600 text-sm leading-relaxed">{lesson.content}</p>
+                  
+                  {/* Module Statistics */}
+                  <div className="space-y-2 mb-4">
+                    {moduleLessons.length > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Total Lessons</span>
+                        <span className="font-semibold text-gray-900">{moduleLessons.length}</span>
+                      </div>
+                    )}
+                    {videoLessons > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Play className="w-3 h-3" />
+                          Video Lessons
+                        </span>
+                        <span className="font-semibold text-blue-600">{videoLessons}</span>
+                      </div>
+                    )}
+                    {textLessons > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          Text Lessons
+                        </span>
+                        <span className="font-semibold text-gray-600">{textLessons}</span>
+                      </div>
+                    )}
+                    {moduleAssignments.length > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Assignments</span>
+                        <span className="font-semibold text-orange-600">{moduleAssignments.length}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Module Preview */}
+                  {moduleLessons.length > 0 && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Lesson Preview</h4>
+                      <div className="space-y-2">
+                        {moduleLessons.slice(0, 3).map((lesson) => (
+                          <div key={lesson.id} className="flex items-center gap-2 text-sm">
+                            {lesson.videoUrl ? (
+                              <Play className="w-3 h-3 text-blue-500" />
+                            ) : (
+                              <FileText className="w-3 h-3 text-gray-400" />
+                            )}
+                            <span className="text-gray-600 truncate">{lesson.title}</span>
+                          </div>
+                        ))}
+                        {moduleLessons.length > 3 && (
+                          <div className="text-xs text-gray-500">
+                            +{moduleLessons.length - 3} more lessons
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -177,7 +232,7 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Enrollments</p>
-              <p className="text-2xl font-bold text-gray-900">{course.enrolledCount}</p>
+              <p className="text-2xl font-bold text-gray-900">{course.enrolled_count}</p>
             </div>
             <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-white" />
@@ -200,11 +255,11 @@ export function ViewCourse({ course, onBack }: ViewCourseProps) {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₦{(course.price * course.enrolledCount).toLocaleString()}</p>
+              <p className="text-sm text-gray-600 mb-1">Total Modules</p>
+              <p className="text-2xl font-bold text-gray-900">{modules.length}</p>
             </div>
             <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
-              <Star className="w-6 h-6 text-white" />
+              <FolderOpen className="w-6 h-6 text-white" />
             </div>
           </div>
         </div>

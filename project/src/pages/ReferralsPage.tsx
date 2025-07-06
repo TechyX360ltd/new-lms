@@ -9,7 +9,12 @@ export default function ReferralsPage() {
   const { stats } = useGamification();
   const { user } = useAuth();
   const referralCode = user?.referral_code || '';
-  const referralLink = `${window.location.origin}/register?ref=${referralCode}`;
+  const referralLink = referralCode ? `${window.location.origin}/register?ref=${referralCode}` : '';
+  
+  // Debug logging
+  console.log('User object:', user);
+  console.log('Referral code:', referralCode);
+  console.log('Referral link:', referralLink);
   const [copied, setCopied] = useState(false);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,12 +29,22 @@ export default function ReferralsPage() {
       try {
         const { data, error } = await supabase
           .from('referral_events')
-          .select(`*, referred_user:users!referral_events_referred_user_id_fkey(id, name, email)`) // join referred user
+          .select(`
+            *,
+            referred_user:users!referral_events_referred_user_id_fkey(
+              id, 
+              first_name,
+              last_name,
+              email
+            )
+          `)
           .eq('referrer_id', user.id)
           .order('created_at', { ascending: false });
         if (error) throw error;
+        console.log('Referrals data:', data);
         setReferrals(data || []);
       } catch (err: any) {
+        console.error('Error fetching referrals:', err);
         setError('Failed to load referrals');
       } finally {
         setLoading(false);
@@ -65,13 +80,33 @@ export default function ReferralsPage() {
         <div className="bg-white rounded-xl shadow p-4 flex flex-col sm:flex-row items-center gap-4 w-full max-w-xl">
           <div className="flex-1 text-center sm:text-left">
             <div className="text-gray-700 font-semibold mb-1">Your Referral Link</div>
-            <div className="font-mono text-lg text-yellow-700 break-all">{referralLink}</div>
+            {referralCode ? (
+              <div className="font-mono text-lg text-yellow-700 break-all">{referralLink}</div>
+            ) : (
+              <div className="text-gray-500 italic">Loading referral code...</div>
+            )}
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCopy} className="px-3 py-2 bg-yellow-200 rounded-lg hover:bg-yellow-300 text-yellow-800 font-bold flex items-center gap-1">
+            <button 
+              onClick={handleCopy} 
+              disabled={!referralCode}
+              className={`px-3 py-2 rounded-lg font-bold flex items-center gap-1 ${
+                referralCode 
+                  ? 'bg-yellow-200 hover:bg-yellow-300 text-yellow-800' 
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+            >
               <Copy className="w-4 h-4" /> {copied ? 'Copied!' : 'Copy'}
             </button>
-            <button onClick={handleShare} className="px-3 py-2 bg-pink-200 rounded-lg hover:bg-pink-300 text-pink-800 font-bold flex items-center gap-1">
+            <button 
+              onClick={handleShare} 
+              disabled={!referralCode}
+              className={`px-3 py-2 rounded-lg font-bold flex items-center gap-1 ${
+                referralCode 
+                  ? 'bg-pink-200 hover:bg-pink-300 text-pink-800' 
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+            >
               <Share2 className="w-4 h-4" /> Share
             </button>
           </div>
@@ -109,8 +144,13 @@ export default function ReferralsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {referrals.map((r, i) => (
-                  <tr key={i} className={r.status === 'completed' ? 'bg-yellow-50' : ''}>
-                    <td className="px-4 py-2 font-medium text-gray-900">{r.referred_user?.name || '—'}</td>
+                  <tr key={r.id || i} className={r.status === 'completed' ? 'bg-yellow-50' : ''}>
+                    <td className="px-4 py-2 font-medium text-gray-900">
+                      {r.referred_user?.first_name && r.referred_user?.last_name 
+                        ? `${r.referred_user.first_name} ${r.referred_user.last_name}`
+                        : r.referred_user?.first_name || r.referred_user?.last_name || '—'
+                      }
+                    </td>
                     <td className="px-4 py-2 text-gray-700">{r.referred_user?.email || '—'}</td>
                     <td className="px-4 py-2 text-gray-500">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
                     <td className={`px-4 py-2 font-semibold ${r.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>{r.status === 'completed' ? 'Completed' : 'Pending'}</td>

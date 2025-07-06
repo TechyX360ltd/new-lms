@@ -41,6 +41,9 @@ export function StoreFront() {
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [giftType, setGiftType] = useState<'coins' | 'item'>('coins');
   const [giftItemId, setGiftItemId] = useState<string | undefined>(undefined);
+  const [showEarnMoreModal, setShowEarnMoreModal] = useState(false);
+  const [earnMoreAmount, setEarnMoreAmount] = useState(0);
+  const [earnMoreItem, setEarnMoreItem] = useState<StoreItem | null>(null);
 
   useEffect(() => {
     loadStoreItems();
@@ -154,6 +157,22 @@ export function StoreFront() {
         </div>
       </div>
 
+      {/* Store Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-blue-600 text-sm">ℹ️</span>
+          </div>
+          <div>
+            <h3 className="font-medium text-blue-900 mb-1">How the Store Works</h3>
+            <p className="text-blue-700 text-sm">
+              Browse all items freely! You can see everything available, but you'll need enough coins to make purchases. 
+              Earn coins by learning daily, completing courses, maintaining streaks, and referring friends.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Success/Error Messages */}
       {purchaseSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
@@ -209,16 +228,9 @@ export function StoreFront() {
           return (
             <div
               key={item.id}
-              className={`relative min-h-[440px] flex flex-col justify-between items-center p-6 rounded-3xl shadow-xl border-4 border-transparent bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:border-yellow-300 cursor-pointer group ${
-                owned ? 'opacity-100' : canAfford ? '' : 'opacity-60'
-              }`}
+              className={`relative min-h-[440px] flex flex-col justify-between items-center p-6 rounded-3xl shadow-xl border-4 border-transparent bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:border-yellow-300 cursor-pointer group`}
               onClick={() => !owned && canAfford && setSelectedItem(item)}
             >
-              {/* Confetti/Sparkles for rare/epic */}
-              {item.rarity === 'epic' && (
-                <div className="absolute top-4 right-4 animate-pulse text-2xl">✨</div>
-              )}
-
               {/* Icon Badge */}
               <div className="flex flex-col items-center w-full">
                 <div className="relative flex items-center justify-center w-24 h-24 mb-4 rounded-full bg-white shadow-lg border-4 border-yellow-200 group-hover:scale-110 transition-transform duration-300">
@@ -232,10 +244,6 @@ export function StoreFront() {
                     <div className="w-16 h-16 text-gray-400 flex items-center justify-center">
                       {getItemIcon(item.item_type)}
                     </div>
-                  )}
-                  {/* Extra sparkles for epic */}
-                  {item.rarity === 'epic' && (
-                    <span className="absolute -top-2 -right-2 text-yellow-400 text-xl animate-bounce">🌟</span>
                   )}
                 </div>
               </div>
@@ -265,10 +273,38 @@ export function StoreFront() {
                   <span className="text-green-600 flex items-center gap-1">✅ Owned</span>
                 ) : canAfford ? (
                   <span className="text-blue-600 flex items-center gap-1">🪙 Available</span>
-                ) : (
-                  <span className="text-red-500 flex items-center gap-1">❌ Not enough coins</span>
-                )}
+                ) : null}
               </div>
+
+              {/* Quick Purchase Button for Affordable Items */}
+              {!owned && canAfford && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedItem(item);
+                  }}
+                  className="mt-3 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Purchase
+                </button>
+              )}
+
+              {/* Earn More Coins Button for Unaffordable Items */}
+              {!owned && !canAfford && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEarnMoreAmount(item.price - (stats?.coins || 0));
+                    setEarnMoreItem(item);
+                    setShowEarnMoreModal(true);
+                  }}
+                  className="mt-3 w-full bg-orange-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Coins className="w-4 h-4" />
+                  Earn More Coins
+                </button>
+              )}
             </div>
           );
         })}
@@ -359,16 +395,61 @@ export function StoreFront() {
                 Your balance: {(stats?.coins || 0).toLocaleString()} coins
               </div>
 
+              {/* Insufficient Coins Warning */}
+              {(stats?.coins || 0) < selectedItem.price && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-orange-700">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      You need {(selectedItem.price - (stats?.coins || 0)).toLocaleString()} more coins
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Purchase Button */}
               <button
                 onClick={() => handlePurchase(selectedItem)}
                 disabled={purchaseLoading || (stats?.coins || 0) < selectedItem.price}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                  (stats?.coins || 0) >= selectedItem.price
+                    ? 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                }`}
               >
                 <ShoppingCart className="w-4 h-4" />
-                {purchaseLoading ? 'Processing...' : 'Purchase'}
+                {purchaseLoading ? 'Processing...' : (stats?.coins || 0) >= selectedItem.price ? 'Purchase' : 'Insufficient Coins'}
               </button>
+
+              {/* Earn More Coins Suggestion */}
+              {(stats?.coins || 0) < selectedItem.price && (
+                <div className="text-xs text-gray-500">
+                  💡 Keep learning to earn more coins! Complete courses, maintain streaks, and refer friends.
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Earn More Coins Modal */}
+      {showEarnMoreModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 text-center">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Cannot Purchase Item</h3>
+            <div className="mb-4 text-gray-700">
+              You cannot buy this item at the moment,<br />
+              you need <span className="font-bold text-yellow-600">{earnMoreAmount}</span> more gold coins.
+            </div>
+            <div className="mb-4 text-sm text-gray-500">
+              💡 Keep learning, complete courses, and refer friends to earn more coins!
+            </div>
+            <button
+              onClick={() => setShowEarnMoreModal(false)}
+              className="mt-2 w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

@@ -27,7 +27,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Course } from '../../types';
-import { useCategories } from '../../hooks/useData';
+import { useCategories, useUsers } from '../../hooks/useData';
+import { useToast } from '../Auth/ToastContext';
 
 interface Module {
   id: string;
@@ -53,19 +54,36 @@ interface EditCourseProps {
   onCancel: () => void;
 }
 
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')           // Replace spaces with -
+    .replace(/&/g, '-and-')          // Replace & with 'and'
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9-]/g, '')      // Remove all non-word chars
+    .replace(/--+/g, '-')            // Replace multiple - with single -
+    .replace(/^-+/, '')              // Trim - from start of text
+    .replace(/-+$/, '');             // Trim - from end of text
+}
+
 export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
   const { categories, refreshCategories, loading: categoriesLoading } = useCategories();
+  const { users, loading: usersLoading } = useUsers();
+  const { showToast } = useToast();
   const [courseData, setCourseData] = useState({
     title: course.title,
     description: course.description,
     instructor: course.instructor,
+    instructor_id: course.instructor_id || '',
     category: course.category,
     format: course.format as 'text' | 'video' | 'mixed',
     duration: course.duration,
     price: course.price,
     thumbnail: null as File | null,
-    isPublished: course.isPublished,
-    certificateTemplate: (course as any).certificateTemplate || 'default' as 'default' | 'modern' | 'elegant',
+    is_published: course.is_published,
+    certificatetemplate: (course as any).certificatetemplate || 'default' as 'default' | 'modern' | 'elegant',
   });
 
   const [modules, setModules] = useState<Module[]>([]);
@@ -73,6 +91,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [refreshingSchools, setRefreshingSchools] = useState(false);
+  const [instructorSearch, setInstructorSearch] = useState('');
 
   const certificateTemplates = [
     { id: 'default', name: 'Default Template', description: 'Classic blue and white design' },
@@ -98,7 +117,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
   // Load existing course data when component mounts
   useEffect(() => {
     // Convert existing course lessons to modules format
-    if (course.lessons && course.lessons.length > 0) {
+    if ((course as any).lessons && (course as any).lessons.length > 0) {
       // Check if course already has modules structure
       if ((course as any).modules && (course as any).modules.length > 0) {
         // Load existing modules
@@ -106,11 +125,10 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
           ...module,
           lessons: module.lessons.map((lesson: any) => ({
             ...lesson,
-            attachments: [] // Reset file attachments for editing
+            attachments: [] as File[], // Always use an empty array of File objects
           }))
         }));
         setModules(existingModules);
-        
         // Expand all modules by default
         const moduleIds = existingModules.map((m: any) => m.id);
         setExpandedModules(new Set(moduleIds));
@@ -121,22 +139,28 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
           title: 'Course Content',
           description: 'Main course content',
           sort_order: 1,
-          lessons: course.lessons.map((lesson, index) => ({
+          lessons: ((course as any).lessons || []).map((lesson: any, index: number) => ({
             id: lesson.id,
             title: lesson.title,
             content: lesson.content,
             contentType: 'text' as const,
-            attachments: [],
+            attachments: [] as File[],
             duration: lesson.duration || 15,
             sort_order: index + 1,
           }))
         };
-        
         setModules([defaultModule]);
         setExpandedModules(new Set(['default-module']));
       }
     }
   }, [course]);
+
+  // Filter instructors for dropdown
+  const instructors = users
+    .filter(u => u.role === 'instructor' && (
+      (u.firstName + ' ' + u.lastName).toLowerCase().includes(instructorSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(instructorSearch.toLowerCase())
+    ));
 
   // Rich Text Formatting Functions
   const formatText = (moduleId: string, lessonId: string, format: string) => {
@@ -358,25 +382,34 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
 
     try {
       const totalDuration = calculateTotalDuration();
+      let thumbnailUrl = courseData.thumbnail;
+      if (courseData.thumbnail instanceof File) {
+        // You may want to upload the file and get a URL here, similar to CreateCourse
+        // For now, fallback to the existing course thumbnail if not uploading
+        thumbnailUrl = course.thumbnail;
+      }
+      const slug = slugify(courseData.title);
+      // Only include fields that exist in the DB schema
       const coursePayload = {
-        ...courseData,
-        duration: Math.ceil(totalDuration / 60) || courseData.duration, // Convert minutes to hours or keep existing
-        modules,
-        thumbnail: courseData.thumbnail ? URL.createObjectURL(courseData.thumbnail) : course.thumbnail,
-        lessons: modules.flatMap(module => module.lessons.map(lesson => ({
-          id: lesson.id,
-          title: lesson.title,
-          content: lesson.content,
-          videoUrl: lesson.contentType === 'video' ? 'https://example.com/video' : undefined,
-          duration: lesson.duration,
-          sort_order: lesson.sort_order
-        }))),
-        updatedAt: new Date().toISOString(),
+        title: courseData.title,
+        slug,
+        description: courseData.description,
+        instructor: courseData.instructor,
+        instructor_id: courseData.instructor_id,
+        category: courseData.category,
+        format: courseData.format,
+        duration: Math.ceil(totalDuration / 60) || courseData.duration,
+        price: courseData.price,
+        thumbnail: thumbnailUrl || course.thumbnail,
+        is_published: courseData.is_published,
+        certificatetemplate: courseData.certificatetemplate,
       };
-
+      console.log('Course payload being sent (Edit):', coursePayload);
       await onSave(coursePayload);
+      showToast(`Course updated successfully${courseData.is_published ? ' and published!' : ' (saved as draft).'}`, 'success');
     } catch (error) {
       console.error('Error updating course:', error);
+      showToast('Error updating course. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -429,15 +462,31 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
               </label>
               <input
                 type="text"
-                value={courseData.instructor}
-                onChange={(e) => setCourseData({...courseData, instructor: e.target.value})}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.instructor ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Instructor name"
-                required
+                value={instructorSearch}
+                onChange={e => setInstructorSearch(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                placeholder="Search instructor by name or email"
+                autoComplete="off"
               />
-              {errors.instructor && <p className="text-red-600 text-sm mt-1">{errors.instructor}</p>}
+              <select
+                value={courseData.instructor_id}
+                onChange={e => {
+                  const selected = users.find(u => u.id === e.target.value);
+                  setCourseData({
+                    ...courseData,
+                    instructor_id: selected?.id || '',
+                    instructor: selected ? `${selected.firstName} ${selected.lastName}` : '',
+                  });
+                }}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                disabled={usersLoading}
+              >
+                <option value="">{usersLoading ? 'Loading instructors...' : 'Select instructor'}</option>
+                {instructors.map(i => (
+                  <option key={i.id} value={i.id}>{i.firstName} {i.lastName} ({i.email})</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -531,6 +580,19 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
               />
               <p className="text-sm text-gray-500 mt-1">Leave empty to keep current thumbnail</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Publish Course
+              </label>
+              <input
+                type="checkbox"
+                checked={courseData.is_published}
+                onChange={e => setCourseData({ ...courseData, is_published: e.target.checked })}
+                className="w-5 h-5"
+              />
+              <span className="ml-2 text-gray-600">{courseData.is_published ? 'Published' : 'Draft'}</span>
+            </div>
           </div>
 
           <div className="mt-6">
@@ -575,11 +637,11 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
               <div
                 key={template.id}
                 className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                  courseData.certificateTemplate === template.id
+                  courseData.certificatetemplate === template.id
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => setCourseData({...courseData, certificateTemplate: template.id})}
+                onClick={() => setCourseData({...courseData, certificatetemplate: template.id})}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <Award className="w-6 h-6 text-blue-600" />
@@ -877,27 +939,6 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
               </ul>
             </div>
           </div>
-        </div>
-
-        {/* Publishing Options */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Publishing Options</h2>
-          
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="isPublished"
-              checked={courseData.isPublished}
-              onChange={(e) => setCourseData({...courseData, isPublished: e.target.checked})}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="isPublished" className="text-sm font-medium text-gray-700">
-              Publish course
-            </label>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            If unchecked, the course will be saved as a draft.
-          </p>
         </div>
 
         {/* Submit Button */}

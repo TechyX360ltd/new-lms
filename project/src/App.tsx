@@ -40,6 +40,7 @@ import { BadgeManagement } from './components/Admin/BadgeManagement';
 import { GamificationModeration } from './components/Admin/GamificationModeration';
 import { AdminSidebar } from './components/Admin/Sidebar';
 import ReferralsPage from './pages/ReferralsPage';
+import AdminReferralsPage from './pages/AdminReferralsPage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -247,6 +248,7 @@ function AppContent() {
           <Route path="store" element={<StoreManagement />} />
           <Route path="badges" element={<BadgeManagement />} />
           <Route path="moderation" element={<GamificationModeration />} />
+          <Route path="referrals" element={<AdminReferralsPage />} />
         </Route>
 
         {/* Instructor Routes */}
@@ -268,7 +270,7 @@ function AppContent() {
         />
 
         {/* Course Viewer Route */}
-        <Route path="/course/:courseId" element={<CourseViewer />} />
+        <Route path="/course/:courseSlug" element={<CourseViewer />} />
 
         {/* Gamification Dashboard Route */}
         <Route

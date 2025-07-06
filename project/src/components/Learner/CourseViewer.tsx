@@ -2,20 +2,27 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
-import { PlayCircle, FileText, ChevronLeft, ChevronRight, CheckCircle, Calendar, Clock, AlertCircle, XCircle, ChevronDown, ChevronRight as ChevronRightIcon, Menu } from 'lucide-react';
+import { PlayCircle, FileText, ChevronLeft, ChevronRight, CheckCircle, Calendar, Clock, AlertCircle, XCircle, ChevronDown, ChevronRight as ChevronRightIcon, Menu, Coins } from 'lucide-react';
 import { Header } from '../Layout/Header';
+import { useGamification } from '../../hooks/useGamification';
+import { supabase } from '../../lib/supabase';
 
 export function CourseViewer() {
-  const { courseId: courseIdParam } = useParams<{ courseId?: string }>();
-  const courseId = courseIdParam || '';
+  const { courseSlug } = useParams<{ courseSlug?: string }>();
+  const slug = courseSlug || '';
   const navigate = useNavigate();
-  const { getCourseById, loading } = useCourses();
+  const { getCourseBySlug, loading } = useCourses();
   const { user } = useAuth();
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { stats, loadUserStats } = useGamification();
+  const [showCoinModal, setShowCoinModal] = useState(false);
+  const [coinModalLoading, setCoinModalLoading] = useState(false);
+  const [coinModalError, setCoinModalError] = useState<string | null>(null);
+  const [coinModalSuccess, setCoinModalSuccess] = useState<string | null>(null);
 
-  const course = getCourseById(courseId);
+  const course = getCourseBySlug(slug);
   const lessons = course?.lessons || [];
   const assignments = course?.assignments || [];
   const modules = course?.modules && course.modules.length > 0
@@ -27,6 +34,14 @@ export function CourseViewer() {
   const currentLesson = lessons[currentLessonIndex];
   const isLastLesson = currentLessonIndex === lessons.length - 1;
   const progress = lessons.length > 0 ? Math.round((completedLessons.size / lessons.length) * 100) : 0;
+
+  const COIN_CONVERSION = 100; // 100 coins = ₦1
+  const MIN_NAIRA = 1;
+  const MAX_NAIRA = 10000;
+
+  const eligible = course.price >= MIN_NAIRA && course.price <= MAX_NAIRA;
+  const coinPrice = course.price * COIN_CONVERSION;
+  const canAfford = (stats?.coins || 0) >= coinPrice;
 
   const handleNextLesson = () => {
     if (currentLessonIndex < lessons.length - 1) {
@@ -107,6 +122,31 @@ export function CourseViewer() {
     }
   };
 
+  const handlePayWithCoins = async () => {
+    setCoinModalLoading(true);
+    setCoinModalError(null);
+    setCoinModalSuccess(null);
+    try {
+      const { data, error } = await supabase.rpc('pay_with_coins', {
+        p_user_id: user.id,
+        p_course_id: course.id,
+      });
+      if (error || data?.error) {
+        throw new Error(data?.error || error.message || 'Could not enroll with coins.');
+      }
+      setCoinModalSuccess('Enrollment successful!');
+      loadUserStats();
+      setCoinModalLoading(false);
+      setTimeout(() => {
+        setShowCoinModal(false);
+        setCoinModalSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setCoinModalError(err.message || 'Could not enroll with coins.');
+      setCoinModalLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -134,9 +174,9 @@ export function CourseViewer() {
           <button onClick={() => setMobileSidebarOpen(false)} className="text-gray-500 hover:text-blue-600 p-2">
             <XCircle className="w-6 h-6" />
           </button>
-              </div>
+        </div>
         <div className="p-4 overflow-y-auto">
-            <div className="space-y-4">
+          <div className="space-y-4">
             {modules.map((module) => (
               <div key={module.id} className="border border-gray-100 rounded-xl shadow-sm">
                 <button
@@ -156,7 +196,7 @@ export function CourseViewer() {
                       const globalIdx = lessons.findIndex((l) => l.id === lesson.id);
                       return (
                         <li key={lesson.id}>
-                <button
+                          <button
                             onClick={() => handleLessonSelect(globalIdx)}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                               globalIdx === currentLessonIndex
@@ -171,7 +211,7 @@ export function CourseViewer() {
                             )}
                             <span className="font-medium truncate">{lesson.title}</span>
                             {completedLessons.has(lesson.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
-                </button>
+                          </button>
                         </li>
                       );
                     })}
@@ -187,7 +227,7 @@ export function CourseViewer() {
     </div>
   );
 
-      return (
+  return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       <MobileSidebar />
@@ -198,7 +238,7 @@ export function CourseViewer() {
           <div className="space-y-4">
             {modules.map((module) => (
               <div key={module.id} className="border border-gray-100 rounded-xl shadow-sm">
-          <button
+                <button
                   className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-t-xl focus:outline-none hover:bg-blue-50 transition-colors"
                   onClick={() => handleModuleToggle(module.id)}
                 >
@@ -208,14 +248,14 @@ export function CourseViewer() {
                   ) : (
                     <ChevronRightIcon className="w-5 h-5 text-gray-400" />
                   )}
-          </button>
-          {expandedModules.has(module.id) && (
+                </button>
+                {expandedModules.has(module.id) && (
                   <ul className="py-2 px-2 space-y-1 bg-white rounded-b-xl">
                     {module.lessons.map((lesson, idx) => {
                       const globalIdx = lessons.findIndex((l) => l.id === lesson.id);
-                return (
-                  <li key={lesson.id}>
-                    <button
+                      return (
+                        <li key={lesson.id}>
+                          <button
                             onClick={() => handleLessonSelect(globalIdx)}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                               globalIdx === currentLessonIndex
@@ -229,17 +269,17 @@ export function CourseViewer() {
                               <FileText className="w-5 h-5 text-gray-400" />
                             )}
                             <span className="font-medium truncate">{lesson.title}</span>
-                      {completedLessons.has(lesson.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      ))}
+                            {completedLessons.has(lesson.id) && <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            ))}
           </div>
-    </aside>
+        </aside>
         {/* Main Content */}
         <main className="flex-1 flex flex-col items-center p-2 lg:p-4 w-full">
           <div className="w-full bg-white rounded-2xl shadow-xl p-4 lg:p-6">
@@ -257,6 +297,50 @@ export function CourseViewer() {
               </div>
               <div className="text-xs text-gray-500">Progress: {progress}%</div>
             </div>
+            {eligible && (
+              <div className="my-6 flex flex-col items-center justify-center">
+                <div className="mb-2 text-lg font-bold text-yellow-700 flex items-center gap-2">
+                  <Coins className="w-5 h-5" />
+                  {coinPrice.toLocaleString()} coins
+                </div>
+                <button
+                  onClick={() => setShowCoinModal(true)}
+                  disabled={!canAfford}
+                  className={`bg-yellow-500 text-white px-6 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${canAfford ? 'hover:bg-yellow-600' : 'opacity-60 cursor-not-allowed'}`}
+                  title={canAfford ? 'Pay with coins' : 'Not enough coins'}
+                >
+                  <Coins className="w-4 h-4" /> Pay with Coins
+                </button>
+              </div>
+            )}
+            {showCoinModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 text-center">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Pay with Coins</h3>
+                  <div className="mb-4 text-gray-700">
+                    Are you sure you want to enroll in <span className="font-bold">{course.title}</span> for <span className="font-bold text-yellow-600">{coinPrice.toLocaleString()}</span> gold coins?
+                  </div>
+                  {coinModalError && <div className="text-red-600 mb-2">{coinModalError}</div>}
+                  {coinModalSuccess && <div className="text-green-600 mb-2">{coinModalSuccess}</div>}
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => setShowCoinModal(false)}
+                      className="w-1/2 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                      disabled={coinModalLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handlePayWithCoins}
+                      className="w-1/2 bg-yellow-500 text-white py-2 rounded-lg font-medium hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                      disabled={coinModalLoading}
+                    >
+                      {coinModalLoading ? 'Processing...' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {currentLesson ? (
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
@@ -272,32 +356,32 @@ export function CourseViewer() {
                       <source src={currentLesson.videoUrl} type="video/mp4" />
                       Your browser does not support the video tag.
                     </video>
-      </div>
+                  </div>
                 ) : (
                   <div className="prose prose-blue max-w-none text-gray-800 mb-6 whitespace-pre-line">
                     {currentLesson.content}
-      </div>
+                  </div>
                 )}
                 {/* Mobile/Responsive Navigation Buttons */}
                 <div className="flex gap-2 mt-4 justify-between">
-          <button
-            onClick={handlePreviousLesson}
-            disabled={currentLessonIndex === 0}
+                  <button
+                    onClick={handlePreviousLesson}
+                    disabled={currentLessonIndex === 0}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-          >
+                  >
                     <ChevronLeft className="w-4 h-4" /> Previous
-          </button>
-          <button
+                  </button>
+                  <button
                     onClick={handleMarkComplete}
-            disabled={completedLessons.has(currentLesson.id)}
+                    disabled={completedLessons.has(currentLesson.id)}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50"
-          >
+                  >
                     <CheckCircle className="w-4 h-4" />
-            {completedLessons.has(currentLesson.id) ? 'Completed' : 'Mark as Complete'}
-          </button>
+                    {completedLessons.has(currentLesson.id) ? 'Completed' : 'Mark as Complete'}
+                  </button>
                   {!isLastLesson ? (
-          <button
-            onClick={handleNextLesson}
+                    <button
+                      onClick={handleNextLesson}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                     >
                       Next <ChevronRight className="w-4 h-4" />
@@ -308,18 +392,18 @@ export function CourseViewer() {
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
                     >
                       <CheckCircle className="w-4 h-4" /> Complete Course
-          </button>
+                    </button>
                   )}
                 </div>
-        </div>
+              </div>
             ) : (
               <div className="text-gray-500">No lessons found for this course.</div>
             )}
             {/* Assignment Section */}
             {assignments.length > 0 && (
-          <section className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Assignments</h2>
-            <div className="space-y-6">
+              <section className="mt-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Assignments</h2>
+                <div className="space-y-6">
                   {assignments.map((assignment) => {
                     const status = getAssignmentStatus(assignment);
                     return (
@@ -333,42 +417,40 @@ export function CourseViewer() {
                                 {assignment.isRequired && (
                                   <div className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Required</div>
                                 )}
-    </div>
+                              </div>
                               <p className="text-gray-600 mb-3">{assignment.description}</p>
-        </div>
+                            </div>
                             <div className="flex items-center gap-2 ml-4">{getStatusIcon(status)}</div>
-            </div>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
                               <Calendar className="w-4 h-4" />
                               <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
-            </div>
+                            </div>
                             <div className="flex items-center gap-2 text-gray-600">
                               <Clock className="w-4 h-4" />
                               <span>Points: {assignment.maxPoints}</span>
-              </div>
-            </div>
+                            </div>
+                          </div>
                           <button className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">View / Submit Assignment</button>
-          </div>
-        </div>
+                        </div>
+                      </div>
                     );
                   })}
-              </div>
+                </div>
               </section>
             )}
           </div>
         </main>
-            </div>
+      </div>
       {/* Floating Hamburger (mobile only, top left below header, hidden when sidebar open) */}
       {!mobileSidebarOpen && (
-              <button
+        <button
           className="block lg:hidden fixed z-50 top-4 left-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-2 transition-colors"
-          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}
           onClick={() => setMobileSidebarOpen(true)}
-          aria-label="Open course modules"
         >
-          <Menu className="w-5 h-5" />
-              </button>
+          <Menu className="w-6 h-6" />
+        </button>
       )}
     </div>
   );

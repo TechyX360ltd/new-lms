@@ -28,8 +28,9 @@ import {
   Maximize2,
   RefreshCw
 } from 'lucide-react';
-import { useCategories } from '../../hooks/useData';
+import { useCategories, useUsers } from '../../hooks/useData';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { useToast } from '../Auth/ToastContext';
 
 interface Module {
   id: string;
@@ -99,19 +100,37 @@ function VideoUploadModal({ open, onClose, onUpload, progress, error }: {
   );
 }
 
+// Add a simple slugify function at the top (after imports)
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')           // Replace spaces with -
+    .replace(/&/g, '-and-')          // Replace & with 'and'
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9-]/g, '')      // Remove all non-word chars
+    .replace(/--+/g, '-')            // Replace multiple - with single -
+    .replace(/^-+/, '')              // Trim - from start of text
+    .replace(/-+$/, '');             // Trim - from end of text
+}
+
 export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
   const { categories, refreshCategories, loading: categoriesLoading } = useCategories();
+  const { users, loading: usersLoading } = useUsers();
   const [courseData, setCourseData] = useState({
     title: '',
+    slug: '',
     description: '',
     instructor: '',
+    instructor_id: '',
     category: '',
     format: 'mixed' as 'text' | 'video' | 'mixed',
     duration: 0,
     price: 0,
     thumbnail: null as File | null,
-    isPublished: false,
-    certificateTemplate: 'default' as 'default' | 'modern' | 'elegant',
+    is_published: false,
+    certificatetemplate: 'default',
   });
 
   const [modules, setModules] = useState<Module[]>([]);
@@ -127,6 +146,8 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const { showToast } = useToast();
+  const [instructorSearch, setInstructorSearch] = useState('');
 
   const certificateTemplates = [
     { id: 'default', name: 'Default Template', description: 'Classic blue and white design' },
@@ -461,15 +482,22 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
     }
   };
 
+  // Filter instructors for dropdown
+  const instructors = users
+    .filter(u => u.role === 'instructor' && (
+      (u.firstName + ' ' + u.lastName).toLowerCase().includes(instructorSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(instructorSearch.toLowerCase())
+    ))
+    .map(i => (
+      <option key={i.id} value={i.id}>{i.firstName} {i.lastName} ({i.email})</option>
+    ));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setIsLoading(true);
-
     try {
       const totalDuration = calculateTotalDuration();
       let thumbnailUrl = courseData.thumbnail;
@@ -477,29 +505,26 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
         const uploadResult = await uploadToCloudinary(courseData.thumbnail, 'course-thumbnails');
         thumbnailUrl = uploadResult.secure_url;
       }
+      const slug = courseData.slug ? slugify(courseData.slug) : slugify(courseData.title);
       const coursePayload = {
-        ...courseData,
-        id: Date.now().toString(),
-        duration: Math.ceil(totalDuration / 60), // Convert minutes to hours
-        modules,
-        enrolledCount: 0,
-        thumbnail: thumbnailUrl || 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=600',
-        lessons: modules.flatMap(module => module.lessons.map(lesson => ({
-          id: lesson.id,
-          title: lesson.title,
-          content: lesson.content,
-          videoUrl: lesson.videoUrl,
-          duration: lesson.duration,
-          sort_order: lesson.sort_order
-        }))),
-        createdAt: new Date().toISOString(),
-        certificatetemplate: courseData.certificateTemplate,
+        title: courseData.title,
+        slug,
+        description: courseData.description,
+        instructor: courseData.instructor,
+        instructor_id: courseData.instructor_id,
+        category: courseData.category,
+        format: courseData.format,
+        duration: Number(courseData.duration),
+        price: courseData.price,
+        thumbnail: thumbnailUrl,
+        is_published: courseData.is_published,
+        certificatetemplate: courseData.certificatetemplate,
       };
-
+      console.log('Course payload being sent (Create):', coursePayload);
       await onSave(coursePayload);
-      setIsDirty(false); // Reset dirty state after successful save
+      showToast(`Course created successfully${courseData.is_published ? ' and published!' : ' (saved as draft).'}`, 'success');
     } catch (error) {
-      console.error('Error creating course:', error);
+      showToast('Error creating course. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -548,18 +573,47 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Course Slug (URL) <span className="text-xs text-gray-400">(auto-generated, you can edit)</span>
+              </label>
+              <input
+                type="text"
+                value={courseData.slug || slugify(courseData.title)}
+                onChange={e => setCourseData({ ...courseData, slug: e.target.value })}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="course-slug"
+              />
+              <p className="text-xs text-gray-500 mt-1">URL: /course/{courseData.slug || slugify(courseData.title)}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Instructor *
               </label>
               <input
                 type="text"
-                value={courseData.instructor}
-                onChange={(e) => setCourseData({...courseData, instructor: e.target.value})}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.instructor ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Instructor name"
-                required
+                value={instructorSearch}
+                onChange={e => setInstructorSearch(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                placeholder="Search instructor by name or email"
+                autoComplete="off"
               />
+              <select
+                value={courseData.instructor_id}
+                onChange={e => {
+                  const selected = users.find(u => u.id === e.target.value);
+                  setCourseData({
+                    ...courseData,
+                    instructor_id: selected?.id || '',
+                    instructor: selected ? `${selected.firstName} ${selected.lastName}` : '',
+                  });
+                }}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                disabled={usersLoading}
+              >
+                <option value="">{usersLoading ? 'Loading instructors...' : 'Select instructor'}</option>
+                {instructors}
+              </select>
               {errors.instructor && <p className="text-red-600 text-sm mt-1">{errors.instructor}</p>}
             </div>
 
@@ -600,7 +654,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
               {errors.category && <p className="text-red-600 text-sm mt-1">{errors.category}</p>}
               {categories.length === 0 && !categoriesLoading && (
                 <p className="text-amber-600 text-sm mt-1">
-                  No active schools found. Please create a school first or activate existing ones.
+                  No active categories found. Please create a category first or activate existing ones.
                 </p>
               )}
             </div>
@@ -619,6 +673,21 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                 <option value="video">Video Only</option>
                 <option value="mixed">Mixed Content</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Duration (hours) *
+              </label>
+              <input
+                type="number"
+                value={courseData.duration}
+                onChange={e => setCourseData({ ...courseData, duration: Number(e.target.value) })}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0"
+                min="0"
+                required
+              />
             </div>
 
             <div>
@@ -652,6 +721,19 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                 onChange={(e) => setCourseData({...courseData, thumbnail: e.target.files?.[0] || null})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Publish Course
+              </label>
+              <input
+                type="checkbox"
+                checked={courseData.is_published}
+                onChange={e => setCourseData({ ...courseData, is_published: e.target.checked })}
+                className="w-5 h-5"
+              />
+              <span className="ml-2 text-gray-600">{courseData.is_published ? 'Published' : 'Draft'}</span>
             </div>
           </div>
 
@@ -697,11 +779,11 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
               <div
                 key={template.id}
                 className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                  courseData.certificateTemplate === template.id
+                  courseData.certificatetemplate === template.id
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
-                onClick={() => setCourseData({...courseData, certificateTemplate: template.id})}
+                onClick={() => setCourseData({...courseData, certificatetemplate: template.id})}
               >
                 <div className="flex items-center gap-3 mb-3">
                   <Award className="w-6 h-6 text-blue-600" />
@@ -770,14 +852,15 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                                   >
                                     <option value="text">Text</option>
                                     <option value="video">Video</option>
-                          <option value="mixed">Mixed</option>
+                                    <option value="document">Document</option>
+                                    <option value="image">Image</option>
                                   </select>
                         <button onClick={() => deleteLesson(module.id, lesson.id)} className="text-red-600 hover:bg-red-50 rounded p-2 ml-2">
                           <Trash2 className="w-5 h-5" />
                         </button>
                                 </div>
                       {/* ContentType logic */}
-                      {(lesson.contentType === 'text' || lesson.contentType === 'mixed') && (
+                      {(lesson.contentType === 'text') && (
                                 <div className="mb-2">
                           <div className="flex items-center gap-2 mb-1">
                             <FileText className="w-4 h-4 text-blue-500" />
@@ -805,7 +888,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                                     />
                                   </div>
                                 )}
-                      {(lesson.contentType === 'video' || lesson.contentType === 'mixed') && (
+                      {(lesson.contentType === 'video') && (
                         <div className="mb-2">
                           <div className="flex items-center gap-2 mb-1">
                             <Video className="w-4 h-4 text-purple-500" />

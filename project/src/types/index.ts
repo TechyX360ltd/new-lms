@@ -12,7 +12,7 @@ export interface User {
   education?: string;
   enrolledCourses: string[];
   completedCourses: string[]; // Add completed courses tracking
-  createdAt: string;
+  created_at: string;
   // Instructor-specific fields
   payoutEmail?: string;
   expertise?: string;
@@ -31,26 +31,28 @@ export interface User {
 export interface Course {
   id: string;
   title: string;
+  slug: string; // URL-friendly slug for course
   description: string;
   instructor: string;
-  instructorId: string;
   category: string;
-  format: 'text' | 'video' | 'mixed';
-  duration: number; // in hours
+  format: string;
+  duration: number;
   thumbnail: string;
-  lessons: Lesson[];
-  modules?: Module[]; // Add modules support
-  assignments?: Assignment[]; // Add assignments support
   price: number;
-  isPublished: boolean;
-  enrolledCount: number;
-  createdAt: string;
-  rating?: number;
-  /**
-   * Use 'certificateTemplate' for UI/state, and 'certificatetemplate' for DB sync (matches DB column).
-   */
-  certificateTemplate?: 'default' | 'modern' | 'elegant';
-  certificatetemplate?: 'default' | 'modern' | 'elegant';
+  is_published: boolean;
+  enrolled_count: number;
+  created_at: string;
+  updated_at: string;
+  view_count: number;
+  category_id: string;
+  instructor_id: string;
+  certificatetemplate?: string;
+  certificate_template?: string;
+  level?: string;
+  // lessons?: Lesson[];
+  // modules?: Module[];
+  // assignments?: Assignment[];
+  // rating?: number;
 }
 
 export interface Module {
@@ -84,7 +86,7 @@ export interface Assignment {
   moduleId?: string;
   courseId: string;
   isRequired: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface AssignmentSubmission {
@@ -121,7 +123,7 @@ export interface Notification {
   senderName: string;
   recipients: NotificationRecipient[];
   courseId?: string;
-  createdAt: string;
+  created_at: string;
   scheduledFor?: string;
   isRead?: boolean;
   attachments?: NotificationAttachment[];
@@ -144,7 +146,7 @@ export interface NotificationReply {
   userName: string;
   message: string;
   attachments?: NotificationAttachment[];
-  createdAt: string;
+  created_at: string;
 }
 
 export interface NotificationAttachment {
@@ -168,7 +170,7 @@ export interface Payment {
   courseId: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed';
-  createdAt: string;
+  created_at: string;
 }
 
 export interface AuthState {

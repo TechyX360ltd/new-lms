@@ -26,16 +26,16 @@ export function GamificationModeration() {
     setError(null);
     try {
       console.log('Fetching gamification events...');
-      let query = supabase.from('gamification_events').select('*').order('created_at', { ascending: false }).limit(100);
-      if (filterUser) query = query.eq('user_id', filterUser);
-      if (filterType) query = query.eq('event_type', filterType);
-      const { data, error } = await query;
+    let query = supabase.from('gamification_events').select('*').order('created_at', { ascending: false }).limit(100);
+    if (filterUser) query = query.eq('user_id', filterUser);
+    if (filterType) query = query.eq('event_type', filterType);
+    const { data, error } = await query;
       if (error) {
         console.error('Error fetching events:', error);
         setError(error.message);
       } else {
         console.log('Fetched events:', data);
-        setEvents(data || []);
+    setEvents(data || []);
       }
     } catch (err) {
       console.error('Error fetching events:', err);
@@ -59,7 +59,7 @@ export function GamificationModeration() {
         console.error('Error reversing event:', error);
         alert('Failed to reverse event: ' + error.message);
       } else {
-        fetchEvents();
+    fetchEvents();
       }
     } catch (err) {
       console.error('Error reversing event:', err);
@@ -81,7 +81,7 @@ export function GamificationModeration() {
         console.error('Error flagging event:', error);
         alert('Failed to flag event: ' + error.message);
       } else {
-        fetchEvents();
+    fetchEvents();
       }
     } catch (err) {
       console.error('Error flagging event:', err);

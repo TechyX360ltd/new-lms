@@ -116,7 +116,7 @@ export function Progress() {
     enrolledCourses.forEach(course => {
       const courseProgressInfo = storedProgress[course.id] || {};
       const completedLessons = courseProgressInfo.completedLessons || 0;
-      const totalLessons = course.lessons.length;
+      const totalLessons = course.lessons?.length || 0;
       const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
       const timeSpent = courseProgressInfo.timeSpent || 0;
       
@@ -128,7 +128,7 @@ export function Progress() {
       courseProgressData.push({
         courseId: course.id,
         courseName: course.title,
-        instructor: course.instructor,
+        instructor: course.instructor || 'Instructor',
         thumbnail: course.thumbnail,
         progress,
         timeSpent,
@@ -141,7 +141,7 @@ export function Progress() {
           completed: completedAssignments
         },
         lessonsCompleted: completedLessons,
-        totalLessons
+        totalLessons: totalLessons
       });
     });
 
@@ -158,7 +158,7 @@ export function Progress() {
       courseProgressData.push({
         courseId: course.id,
         courseName: course.title,
-        instructor: course.instructor,
+        instructor: course.instructor || 'Instructor',
         thumbnail: course.thumbnail,
         progress: 100,
         timeSpent,
@@ -170,8 +170,8 @@ export function Progress() {
           total: totalAssignments,
           completed: totalAssignments // All assignments completed for finished courses
         },
-        lessonsCompleted: course.lessons.length,
-        totalLessons: course.lessons.length
+        lessonsCompleted: course.lessons?.length || 0,
+        totalLessons: course.lessons?.length || 0
       });
     });
 

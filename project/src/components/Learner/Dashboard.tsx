@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Clock, Award, TrendingUp, Users, FolderOpen, Calendar as CalendarIcon } from 'lucide-react';
+import { BookOpen, Clock, Award, TrendingUp, Users, FolderOpen, Calendar as CalendarIcon, Gift } from 'lucide-react';
 import { useCourses } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { WelcomeModal } from './WelcomeModal';
@@ -25,6 +25,12 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
   const [statsLoading, setStatsLoading] = React.useState(false);
   const [statsError, setStatsError] = React.useState<string | null>(null);
   const { stats: gamificationStats, loading: gamificationLoading, error: gamificationError } = useGamification();
+  const [weeklyReferrals, setWeeklyReferrals] = React.useState(0);
+  const [referralsLoading, setReferralsLoading] = React.useState(false);
+
+  // Remove stats RPC and use frontend state for coins and enrolled courses
+  const enrolledCoursesCount = user?.enrolledCourses?.length || 0;
+  const coinBalance = user?.coins || 0;
 
   React.useEffect(() => {
     if (user?.role === 'learner') {
@@ -33,46 +39,43 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
     }
   }, [user]);
 
+  // Fetch weekly referrals
   React.useEffect(() => {
-    const fetchStats = async () => {
+    const fetchWeeklyReferrals = async () => {
       if (!user?.id) return;
-      setStatsLoading(true);
-      setStatsError(null);
+      setReferralsLoading(true);
       try {
-        const { data, error } = await supabase.rpc('get_learner_dashboard_stats', { user_id: user.id });
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const { data, error } = await supabase
+          .from('referral_events')
+          .select('id')
+          .eq('referrer_id', user.id)
+          .gte('created_at', oneWeekAgo.toISOString());
+        
         if (error) throw error;
-        if (data && data.length > 0) {
-          setStats(data[0]);
-        } else {
-          setStats({ enrolled_courses: 0, hours_completed: 0, certificates: 0, average_progress: 0 });
-        }
+        setWeeklyReferrals(data?.length || 0);
       } catch (err: any) {
-        setStatsError('Failed to load stats.');
-        setStats(null);
+        console.error('Error fetching weekly referrals:', err);
+        setWeeklyReferrals(0);
       } finally {
-        setStatsLoading(false);
+        setReferralsLoading(false);
       }
     };
-    if (user?.id) fetchStats();
-  }, [user]);
+    
+    fetchWeeklyReferrals();
+  }, [user?.id]);
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
     localStorage.setItem('welcomeModalDismissed', 'true');
   };
 
-  if (coursesLoading || statsLoading) {
+  if (coursesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (statsError) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-red-600">{statsError}</div>
       </div>
     );
   }
@@ -82,7 +85,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
   const statsArray = [
     {
       title: 'Enrolled Courses',
-      value: stats?.enrolled_courses ?? 0,
+      value: enrolledCoursesCount,
       icon: BookOpen,
       color: 'bg-blue-500',
     },
@@ -112,7 +115,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
     },
     {
       title: 'Coins',
-      value: gamificationStats?.coins ?? 0,
+      value: coinBalance,
       icon: Award,
       color: 'bg-yellow-500',
     },
@@ -173,7 +176,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
         </div>
       </div>
 
-      {/* Stats Grid (now includes gamification stats and My Calendar) */}
+      {/* Stats Grid (now includes gamification stats, My Calendar, and Referrals This Week) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
         {statsArray.map((stat, index) => {
           const Icon = stat.icon;
@@ -187,7 +190,7 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
             </div>
           );
         })}
-        {/* My Calendar Card at the end of the grid */}
+        {/* My Calendar Card */}
         <button
           onClick={() => navigate('/dashboard/calendar')}
           className="bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl shadow-sm p-4 lg:p-6 border border-blue-100 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -198,6 +201,20 @@ export function LearnerDashboard({}: LearnerDashboardProps) {
           </div>
           <span className="text-lg font-bold text-white">My Calendar</span>
           <span className="text-xs text-blue-100 mt-1">View your live class schedule</span>
+        </button>
+        {/* Referrals This Week Card */}
+        <button
+          onClick={() => navigate('/dashboard/referrals')}
+          className="bg-gradient-to-r from-pink-500 to-yellow-500 rounded-xl shadow-sm p-4 lg:p-6 border border-pink-100 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-pink-400"
+          style={{ minHeight: 120 }}
+        >
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-2">
+            <Gift className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-lg font-bold text-white">
+            {referralsLoading ? '...' : weeklyReferrals}
+          </span>
+          <span className="text-xs text-pink-100 mt-1">Referrals This Week</span>
         </button>
       </div>
 
