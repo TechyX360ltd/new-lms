@@ -12,23 +12,19 @@ export function Header() {
   const [showSearch, setShowSearch] = useState(false);
 
   // Calculate unread notifications for current user
-  const unreadCount = user?.role === 'learner' 
-    ? notifications.filter(notification =>
-        notification.recipients.some(recipient => 
-          recipient.userId === user?.id && !recipient.isRead
-        )
-      ).length
-    : 0;
+  const unreadCount = notifications.filter(notification =>
+    notification.recipients.some(recipient => 
+      recipient.userId === user?.id && !recipient.isRead
+    )
+  ).length;
 
   // Get recent notifications for dropdown
-  const recentNotifications = user?.role === 'learner'
-    ? notifications
-        .filter(notification =>
-          notification.recipients.some(recipient => recipient.userId === user?.id)
-        )
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 5)
-    : [];
+  const recentNotifications = notifications
+    .filter(notification =>
+      notification.recipients.some(recipient => recipient.userId === user?.id)
+    )
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -44,9 +40,7 @@ export function Header() {
   };
 
   const handleNotificationClick = () => {
-    if (user?.role === 'learner') {
-      setShowNotificationDropdown(!showNotificationDropdown);
-    }
+    setShowNotificationDropdown(!showNotificationDropdown);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -104,7 +98,7 @@ export function Header() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search courses..."
+                placeholder={user?.role === 'admin' ? 'Search users, courses...' : 'Search courses...'}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 lg:w-80"
               />
             </div>
@@ -127,9 +121,8 @@ export function Header() {
                 <span className="font-bold text-yellow-700 text-sm">{user.coins ?? 0}</span>
               </div>
             )}
-            {/* Enhanced Notification Bell for Learners */}
-            {user?.role === 'learner' && (
-              <div className="relative notification-dropdown">
+            {/* Enhanced Notification Bell for All Users */}
+            <div className="relative notification-dropdown">
                 <button 
                   onClick={handleNotificationClick}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors relative"
@@ -206,7 +199,8 @@ export function Header() {
                         <button 
                           onClick={() => {
                             setShowNotificationDropdown(false);
-                            window.location.hash = '#notifications';
+                            const notificationsPath = user?.role === 'admin' ? '/admin/notifications' : '/dashboard/notifications';
+                            window.location.href = notificationsPath;
                           }}
                           className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
@@ -217,7 +211,6 @@ export function Header() {
                   </div>
                 )}
               </div>
-            )}
             
             {/* User Profile - Responsive */}
             <div className="flex items-center gap-2 lg:gap-3">
@@ -255,7 +248,7 @@ export function Header() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search courses..."
+                placeholder={user?.role === 'admin' ? 'Search users, courses...' : 'Search courses...'}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />

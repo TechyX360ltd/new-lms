@@ -26,6 +26,7 @@ import {
   Tablet
 } from 'lucide-react';
 import { useCourses, useUsers, usePayments, useNotifications } from '../../hooks/useData';
+import { supabase } from '../../lib/supabase';
 
 interface AnalyticsData {
   overview: {
@@ -129,7 +130,7 @@ export function Analytics() {
       const totalCourses = courses.length;
       const completedPayments = payments.filter(p => p.status === 'completed');
       const totalRevenue = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-      const totalEnrollments = users.reduce((sum, u) => sum + u.enrolledCourses.length, 0);
+      const totalEnrollments = users.reduce((sum, u) => sum + (Array.isArray(u.enrolledCourses) ? u.enrolledCourses.length : 0), 0);
       const activeUsers = Math.floor(totalUsers * 0.7); // 70% active users
       const completionRate = Math.floor(Math.random() * 30 + 60); // 60-90%
       const averageRating = 4.8;
@@ -828,6 +829,77 @@ export function Analytics() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function DataConsistencyChecker() {
+  const [report, setReport] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function checkData() {
+      setLoading(true);
+      const { data: courses } = await supabase.from('courses').select('*');
+      const { data: modules } = await supabase.from('modules').select('*');
+      const { data: lessons } = await supabase.from('lessons').select('*');
+      const { data: assignments } = await supabase.from('assignments').select('*');
+      const issues: any[] = [];
+      // Check modules
+      for (const mod of modules) {
+        if (!courses.find(c => c.id === mod.course_id)) {
+          issues.push({ type: 'Module', id: mod.id, problem: 'Module has invalid course_id', course_id: mod.course_id });
+        }
+      }
+      // Check lessons
+      for (const les of lessons) {
+        if (!courses.find(c => c.id === les.course_id)) {
+          issues.push({ type: 'Lesson', id: les.id, problem: 'Lesson has invalid course_id', course_id: les.course_id });
+        }
+        if (les.module_id && !modules.find(m => m.id === les.module_id)) {
+          issues.push({ type: 'Lesson', id: les.id, problem: 'Lesson has invalid module_id', module_id: les.module_id });
+        }
+      }
+      // Check assignments
+      for (const assn of assignments) {
+        if (!courses.find(c => c.id === assn.course_id)) {
+          issues.push({ type: 'Assignment', id: assn.id, problem: 'Assignment has invalid course_id', course_id: assn.course_id });
+        }
+        if (assn.module_id && !modules.find(m => m.id === assn.module_id)) {
+          issues.push({ type: 'Assignment', id: assn.id, problem: 'Assignment has invalid module_id', module_id: assn.module_id });
+        }
+      }
+      setReport(issues);
+      setLoading(false);
+    }
+    checkData();
+  }, []);
+
+  return (
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-2">Data Consistency Checker</h2>
+      {loading ? <div>Checking...</div> : report.length === 0 ? <div className="text-green-600">No issues found!</div> : (
+        <table className="min-w-full border text-sm mt-2">
+          <thead>
+            <tr>
+              <th className="border px-2 py-1">Type</th>
+              <th className="border px-2 py-1">ID</th>
+              <th className="border px-2 py-1">Problem</th>
+              <th className="border px-2 py-1">Related ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.map((issue, idx) => (
+              <tr key={idx}>
+                <td className="border px-2 py-1">{issue.type}</td>
+                <td className="border px-2 py-1">{issue.id}</td>
+                <td className="border px-2 py-1">{issue.problem}</td>
+                <td className="border px-2 py-1">{issue.course_id || issue.module_id || ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
 import { Course } from '../../types';
 import { useCategories, useUsers } from '../../hooks/useData';
 import { useToast } from '../Auth/ToastContext';
+import { supabase } from '../../lib/supabase';
 
 interface Module {
   id: string;
@@ -36,6 +37,7 @@ interface Module {
   description: string;
   sort_order: number;
   lessons: Lesson[];
+  assignments?: Assignment[];
 }
 
 interface Lesson {
@@ -46,6 +48,20 @@ interface Lesson {
   attachments: File[];
   duration: number;
   sort_order: number;
+}
+
+interface Assignment {
+  id: string;
+  title: string;
+  description: string;
+  instructions?: string;
+  due_date?: string;
+  max_points?: number;
+  allowed_file_types?: string[];
+  max_file_size?: number;
+  is_required?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface EditCourseProps {
@@ -114,45 +130,81 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
     }
   };
 
-  // Load existing course data when component mounts
+  // Load existing course data and content from backend when component mounts or course changes
   useEffect(() => {
-    // Convert existing course lessons to modules format
-    if ((course as any).lessons && (course as any).lessons.length > 0) {
-      // Check if course already has modules structure
-      if ((course as any).modules && (course as any).modules.length > 0) {
-        // Load existing modules
-        const existingModules = (course as any).modules.map((module: any) => ({
-          ...module,
-          lessons: module.lessons.map((lesson: any) => ({
-            ...lesson,
-            attachments: [] as File[], // Always use an empty array of File objects
-          }))
+    async function fetchCourseContent() {
+      if (!course.id) return;
+      // Fetch modules, lessons, assignments in parallel
+      const [modulesRes, lessonsRes, assignmentsRes] = await Promise.all([
+        supabase.from('modules').select('*').eq('course_id', course.id).order('order', { ascending: true }),
+        supabase.from('lessons').select('*').eq('course_id', course.id).order('order', { ascending: true }),
+        supabase.from('assignments').select('*').eq('course_id', course.id)
+      ]);
+      if (modulesRes.error || lessonsRes.error || assignmentsRes.error) {
+        // fallback to prop-based logic if backend fails
+        loadFromProp();
+        return;
+      }
+      const modules = modulesRes.data || [];
+      const lessons = lessonsRes.data || [];
+      const assignments = assignmentsRes.data || [];
+      let structuredModules = [];
+      if (modules.length > 0) {
+        structuredModules = modules.map(mod => ({
+          ...mod,
+          lessons: lessons.filter(les => les.module_id === mod.id).map(les => ({ ...les, attachments: [] })),
+          assignments: assignments.filter(a => a.module_id === mod.id)
         }));
-        setModules(existingModules);
-        // Expand all modules by default
-        const moduleIds = existingModules.map((m: any) => m.id);
-        setExpandedModules(new Set(moduleIds));
       } else {
-        // Convert flat lessons to module structure
-        const defaultModule: Module = {
-          id: 'default-module',
-          title: 'Course Content',
-          description: 'Main course content',
-          sort_order: 1,
-          lessons: ((course as any).lessons || []).map((lesson: any, index: number) => ({
-            id: lesson.id,
-            title: lesson.title,
-            content: lesson.content,
-            contentType: 'text' as const,
-            attachments: [] as File[],
-            duration: lesson.duration || 15,
-            sort_order: index + 1,
-          }))
-        };
-        setModules([defaultModule]);
-        setExpandedModules(new Set(['default-module']));
+        // No modules: treat all lessons as a single module
+        structuredModules = [{
+          id: 'default',
+          title: 'Lessons',
+          description: '',
+          lessons: lessons.map(les => ({ ...les, attachments: [] })),
+          assignments: assignments.filter(a => !a.module_id)
+        }];
+      }
+      setModules(structuredModules);
+      setExpandedModules(new Set(structuredModules.map((m: any) => m.id)));
+    }
+    function loadFromProp() {
+      // fallback: old prop-based logic
+      if ((course as any).lessons && (course as any).lessons.length > 0) {
+        if ((course as any).modules && (course as any).modules.length > 0) {
+          const existingModules = (course as any).modules.map((module: any) => ({
+            ...module,
+            lessons: module.lessons.map((lesson: any) => ({
+              ...lesson,
+              attachments: [] as File[],
+            })),
+            assignments: module.assignments || [],
+          }));
+          setModules(existingModules);
+          setExpandedModules(new Set(existingModules.map((m: any) => m.id)));
+        } else {
+          const defaultModule: Module = {
+            id: 'default-module',
+            title: 'Course Content',
+            description: 'Main course content',
+            sort_order: 1,
+            lessons: ((course as any).lessons || []).map((lesson: any, index: number) => ({
+              id: lesson.id,
+              title: lesson.title,
+              content: lesson.content,
+              contentType: 'text' as const,
+              attachments: [] as File[],
+              duration: lesson.duration || 15,
+              sort_order: index + 1,
+            })),
+            assignments: [],
+          };
+          setModules([defaultModule]);
+          setExpandedModules(new Set(['default-module']));
+        }
       }
     }
+    fetchCourseContent();
   }, [course]);
 
   // Filter instructors for dropdown
@@ -373,13 +425,10 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setIsLoading(true);
-
     try {
       const totalDuration = calculateTotalDuration();
       let thumbnailUrl = courseData.thumbnail;
@@ -406,10 +455,77 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
       };
       console.log('Course payload being sent (Edit):', coursePayload);
       await onSave(coursePayload);
-      showToast(`Course updated successfully${courseData.is_published ? ' and published!' : ' (saved as draft).'}`, 'success');
+      // --- Backend logic for modules and lessons ---
+      const courseId = course.id;
+      // Upsert modules
+      for (const mod of modules) {
+        const { error: modError } = await supabase
+          .from('modules')
+          .upsert({
+            id: mod.id,
+            course_id: courseId,
+            title: mod.title,
+            description: mod.description,
+            order: mod.sort_order,
+            updated_at: new Date().toISOString(),
+          });
+        if (modError) {
+          console.error('Module upsert error:', modError, mod);
+          throw modError;
+        }
+        // Upsert lessons for this module
+        for (const les of mod.lessons) {
+          console.log('Saving lesson:', les);
+          const { error: lesError } = await supabase
+            .from('lessons')
+            .upsert({
+              id: les.id,
+              course_id: courseId,
+              module_id: mod.id,
+              title: les.title,
+              content: les.content,
+              video_url: les.video_url || null,
+              duration: les.duration,
+              order: les.sort_order,
+              updated_at: new Date().toISOString(),
+            });
+          if (lesError) {
+            console.error('Lesson upsert error:', lesError, les);
+            throw lesError;
+          }
+        }
+        // Upsert assignments for this module (if present)
+        if (mod.assignments && Array.isArray(mod.assignments)) {
+          for (const assn of mod.assignments) {
+            console.log('Saving assignment:', assn);
+            const { error: assnError } = await supabase
+              .from('assignments')
+              .upsert({
+                id: assn.id,
+                course_id: courseId,
+                module_id: mod.id,
+                title: assn.title,
+                description: assn.description,
+                instructions: assn.instructions || '',
+                due_date: assn.due_date || null,
+                max_points: assn.max_points || 0,
+                allowed_file_types: assn.allowed_file_types || [],
+                max_file_size: assn.max_file_size || 0,
+                is_required: assn.is_required || false,
+                created_at: assn.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            if (assnError) {
+              console.error('Assignment upsert error:', assnError, assn);
+              throw assnError;
+            }
+          }
+        }
+      }
+      showToast(`Course and content updated successfully${courseData.is_published ? ' and published!' : ' (saved as draft).'}`, 'success');
     } catch (error) {
       console.error('Error updating course:', error);
-      showToast('Error updating course. Please try again.', 'error');
+      showToast('Error updating course or content. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }

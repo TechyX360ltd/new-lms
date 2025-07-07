@@ -20,7 +20,9 @@ import {
   FolderOpen,
   Calendar,
   TrendingUp,
-  Gift
+  Gift,
+  Tag,
+  Star
 } from 'lucide-react';
 
 export function AdminSidebar() {
@@ -66,17 +68,6 @@ export function AdminSidebar() {
           <Users className="w-5 h-5" /> User Management
         </NavLink>
 
-        <NavLink
-          to="/admin/add-user"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-gray-50'
-            }`
-          }
-        >
-          <UserPlus className="w-5 h-5" /> Add User
-        </NavLink>
-
         {/* Course Management */}
         <NavLink
           to="/admin/courses"
@@ -87,17 +78,6 @@ export function AdminSidebar() {
           }
         >
           <BookOpen className="w-5 h-5" /> Course Management
-        </NavLink>
-
-        <NavLink
-          to="/admin/create-course"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'
-            }`
-          }
-        >
-          <Plus className="w-5 h-5" /> Create Course
         </NavLink>
 
         <NavLink
@@ -113,7 +93,7 @@ export function AdminSidebar() {
 
         {/* Progress Tracking */}
         <NavLink
-          to="/admin/progress"
+          to="/admin/progress-tracking"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
               isActive ? 'bg-teal-100 text-teal-700' : 'text-gray-700 hover:bg-gray-50'
@@ -135,33 +115,9 @@ export function AdminSidebar() {
           <CreditCard className="w-5 h-5" /> Payment Management
         </NavLink>
 
-        {/* Certificates */}
-        <NavLink
-          to="/admin/certificates"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive ? 'bg-amber-100 text-amber-700' : 'text-gray-700 hover:bg-gray-50'
-            }`
-          }
-        >
-          <FileText className="w-5 h-5" /> Certificates
-        </NavLink>
-
-        {/* Assignments */}
-        <NavLink
-          to="/admin/assignments"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive ? 'bg-cyan-100 text-cyan-700' : 'text-gray-700 hover:bg-gray-50'
-            }`
-          }
-        >
-          <Edit className="w-5 h-5" /> Assignment Creator
-        </NavLink>
-
         {/* Sessions */}
         <NavLink
-          to="/admin/sessions"
+          to="/admin/schedule-session"
           className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
               isActive ? 'bg-violet-100 text-violet-700' : 'text-gray-700 hover:bg-gray-50'
@@ -240,6 +196,30 @@ export function AdminSidebar() {
           }
         >
           <Settings className="w-5 h-5" /> Settings
+        </NavLink>
+
+        {/* Coupon Management */}
+        <NavLink
+          to="/admin/coupons"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isActive ? 'bg-orange-100 text-orange-700' : 'text-gray-700 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Tag className="w-5 h-5" /> Coupon Management
+        </NavLink>
+
+        {/* Rating Management */}
+        <NavLink
+          to="/admin/ratings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isActive ? 'bg-yellow-100 text-yellow-700' : 'text-gray-700 hover:bg-gray-50'
+            }`
+          }
+        >
+          <Star className="w-5 h-5" /> Rating Management
         </NavLink>
 
         {/* Referral Management */}

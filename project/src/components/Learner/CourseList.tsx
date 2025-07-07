@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { useGamification } from '../../hooks/useGamification';
 import { supabase } from '../../lib/supabase';
+import CourseDetailsModal from './CourseDetailsModal';
 
 interface CourseListProps {}
 
@@ -22,6 +23,8 @@ export function CourseList({}: CourseListProps) {
   const [coinModalLoading, setCoinModalLoading] = useState(false);
   const [coinModalError, setCoinModalError] = useState<string | null>(null);
   const [coinModalSuccess, setCoinModalSuccess] = useState<string | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
   const COIN_CONVERSION = 100; // 100 coins = ₦1
   const MIN_NAIRA = 1;
@@ -51,8 +54,9 @@ export function CourseList({}: CourseListProps) {
     navigate(`/course/${courseId}`);
   };
 
-  const handleViewDetails = (courseId: string) => {
-    navigate(`/course/${courseId}`);
+  const handleViewDetails = (course: any) => {
+    setSelectedCourse(course);
+    setShowDetailsModal(true);
   };
 
   const handleViewCertificate = () => {
@@ -267,11 +271,20 @@ export function CourseList({}: CourseListProps) {
                     </div>
                     <div className="flex gap-2 mt-auto">
                       {activeTab === 'active' ? (
-                        <Link to={`/course/${course.slug}`} className="flex-1">
-                          <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                            <Play className="w-5 h-5" /> Continue
+                        <>
+                          <Link to={`/course/${course.slug}`} className="flex-1">
+                            <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                              <Play className="w-5 h-5" /> Continue
+                            </button>
+                          </Link>
+                          <button
+                            onClick={() => handleViewDetails(course)}
+                            className="flex-1 bg-gray-100 text-blue-700 px-6 py-2 rounded-lg font-medium hover:bg-blue-100 border border-blue-200 transition-colors flex items-center justify-center gap-2"
+                            style={{ minWidth: '0' }}
+                          >
+                            <Eye className="w-5 h-5" /> View
                           </button>
-                        </Link>
+                        </>
                       ) : (
                         <button
                           onClick={handleViewCertificate}
@@ -354,6 +367,12 @@ export function CourseList({}: CourseListProps) {
             </div>
           </div>
         </div>
+      )}
+      {showDetailsModal && selectedCourse && (
+        <CourseDetailsModal
+          course={selectedCourse}
+          onClose={() => setShowDetailsModal(false)}
+        />
       )}
     </div>
   );

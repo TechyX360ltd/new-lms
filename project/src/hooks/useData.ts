@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Course, Category, User, Payment, Assignment, Notification, NotificationReply } from '../types';
 import { supabase } from '../lib/supabase';
+import { keysToCamel } from '../lib/caseUtils';
 import { useToast } from '../components/Auth/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,12 +12,12 @@ interface School {
   description: string;
   icon: string;
   color: string;
-  courseCount: number;
-  studentCount: number;
-  instructorCount: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  course_count: number;
+  student_count: number;
+  instructor_count: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 // Mock schools (replacing categories)
@@ -27,11 +28,11 @@ const mockSchools: School[] = [
     description: 'Technical and engineering courses covering software development, data science, AI, and more',
     icon: 'Building',
     color: 'blue',
-    courseCount: 25,
-    studentCount: 450,
-    instructorCount: 12,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
+    course_count: 25,
+    student_count: 450,
+    instructor_count: 12,
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z'
   },
   { 
     id: 'school-of-design', 
@@ -39,11 +40,11 @@ const mockSchools: School[] = [
     description: 'Creative design courses including UI/UX, graphic design, and digital arts',
     icon: 'Award',
     color: 'purple',
-    courseCount: 18,
-    studentCount: 320,
-    instructorCount: 8,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
+    course_count: 18,
+    student_count: 320,
+    instructor_count: 8,
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z'
   },
   { 
     id: 'school-of-product', 
@@ -51,11 +52,11 @@ const mockSchools: School[] = [
     description: 'Product management and strategy courses for aspiring product managers',
     icon: 'TrendingUp',
     color: 'green',
-    courseCount: 12,
-    studentCount: 180,
-    instructorCount: 6,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
+    course_count: 12,
+    student_count: 180,
+    instructor_count: 6,
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z'
   },
   { 
     id: 'school-of-marketing', 
@@ -63,11 +64,11 @@ const mockSchools: School[] = [
     description: 'Digital marketing, growth hacking, and brand strategy courses',
     icon: 'Users',
     color: 'orange',
-    courseCount: 15,
-    studentCount: 280,
-    instructorCount: 7,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
+    course_count: 15,
+    student_count: 280,
+    instructor_count: 7,
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z'
   },
   { 
     id: 'school-of-business', 
@@ -75,11 +76,11 @@ const mockSchools: School[] = [
     description: 'Business strategy, entrepreneurship, and leadership development courses',
     icon: 'GraduationCap',
     color: 'indigo',
-    courseCount: 20,
-    studentCount: 350,
-    instructorCount: 10,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z'
+    course_count: 20,
+    student_count: 350,
+    instructor_count: 10,
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z'
   },
 ];
 
@@ -90,7 +91,7 @@ const mockPayments: Payment[] = [
     courseId: '1',
     amount: 25000,
     status: 'completed',
-    createdAt: '2024-01-15T00:00:00Z',
+    created_at: '2024-01-15T00:00:00Z',
   },
   {
     id: '2',
@@ -98,7 +99,7 @@ const mockPayments: Payment[] = [
     courseId: '2',
     amount: 35000,
     status: 'completed',
-    createdAt: '2024-01-20T00:00:00Z',
+    created_at: '2024-01-20T00:00:00Z',
   },
 ];
 
@@ -110,28 +111,8 @@ const fetchCoursesFromSupabase = async () => {
         .select('*');
       if (error) throw error;
       if (courses && courses.length > 0) {
-        // Format courses to match our app's structure
-        return courses.map((course: any) => ({
-          id: course.id,
-          title: course.title,
-          description: course.description,
-          instructor: course.instructor,
-          category: course.category,
-          format: course.format,
-          duration: course.duration,
-          thumbnail: course.thumbnail,
-          price: course.price,
-          is_published: course.is_published,
-          enrolled_count: course.enrolled_count,
-          created_at: course.created_at,
-          updated_at: course.updated_at,
-          view_count: course.view_count,
-          category_id: course.category_id,
-          instructor_id: course.instructor_id,
-          certificatetemplate: course.certificatetemplate,
-          certificate_template: course.certificate_template,
-          level: course.level
-        }));
+        // Use keysToCamel to convert snake_case to camelCase
+        return keysToCamel<Course[]>(courses);
       }
   } catch (error) {
     console.error('Error fetching courses from Supabase:', error);
@@ -256,7 +237,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
                     .update({
                       title: lesson.title,
                       content: lesson.content,
-                      video_url: lesson.videoUrl,
+                      video_url: lesson.video_url,
                       duration: lesson.duration,
                       order: lesson.sort_order,
                       updated_at: new Date().toISOString()
@@ -274,7 +255,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
                       module_id: module.id,
                       title: lesson.title,
                       content: lesson.content,
-                      video_url: lesson.videoUrl,
+                      video_url: lesson.video_url,
                       duration: lesson.duration,
                       order: lesson.sort_order,
                       created_at: new Date().toISOString()
@@ -304,7 +285,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
                 .update({
                   title: lesson.title,
                   content: lesson.content,
-                  video_url: lesson.videoUrl,
+                  video_url: lesson.video_url,
                   duration: lesson.duration,
                   order: lesson.sort_order,
                   updated_at: new Date().toISOString()
@@ -322,7 +303,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
                   module_id: null,
                   title: lesson.title,
                   content: lesson.content,
-                  video_url: lesson.videoUrl,
+                  video_url: lesson.video_url,
                   duration: lesson.duration,
                   order: lesson.sort_order,
                   created_at: new Date().toISOString()
@@ -358,14 +339,14 @@ const getAssignmentsForCourse = async (courseId: string): Promise<Assignment[]> 
           title: assignment.title,
           description: assignment.description,
           instructions: assignment.instructions,
-          dueDate: assignment.due_date,
-          maxPoints: assignment.max_points,
-          allowedFileTypes: assignment.allowed_file_types,
-          maxFileSize: assignment.max_file_size,
-          moduleId: assignment.module_id,
-          courseId: assignment.course_id,
-          isRequired: assignment.is_required,
-          createdAt: assignment.created_at
+          due_date: assignment.due_date,
+          max_points: assignment.max_points,
+          allowed_file_types: assignment.allowed_file_types,
+          max_file_size: assignment.max_file_size,
+          module_id: assignment.module_id,
+          course_id: assignment.course_id,
+          is_required: assignment.is_required,
+          created_at: assignment.created_at
         }));
     }
   } catch (error) {
@@ -401,13 +382,13 @@ const saveAssignmentsForCourse = async (courseId: string, assignments: Assignmen
               title: assignment.title,
               description: assignment.description,
               instructions: assignment.instructions,
-              due_date: assignment.dueDate,
-              max_points: assignment.maxPoints,
-              allowed_file_types: assignment.allowedFileTypes,
-              max_file_size: assignment.maxFileSize,
-              module_id: assignment.moduleId,
-              course_id: assignment.courseId,
-              is_required: assignment.isRequired,
+              due_date: assignment.due_date,
+              max_points: assignment.max_points,
+              allowed_file_types: assignment.allowed_file_types,
+              max_file_size: assignment.max_file_size,
+              module_id: assignment.module_id,
+              course_id: assignment.course_id,
+              is_required: assignment.is_required,
               updated_at: new Date().toISOString()
             })
             .eq('id', assignment.id);
@@ -422,14 +403,14 @@ const saveAssignmentsForCourse = async (courseId: string, assignments: Assignmen
               title: assignment.title,
               description: assignment.description,
               instructions: assignment.instructions,
-              due_date: assignment.dueDate,
-              max_points: assignment.maxPoints,
-              allowed_file_types: assignment.allowedFileTypes,
-              max_file_size: assignment.maxFileSize,
-              module_id: assignment.moduleId,
-              course_id: assignment.courseId,
-              is_required: assignment.isRequired,
-              created_at: assignment.createdAt
+              due_date: assignment.due_date,
+              max_points: assignment.max_points,
+              allowed_file_types: assignment.allowed_file_types,
+              max_file_size: assignment.max_file_size,
+              module_id: assignment.module_id,
+              course_id: assignment.course_id,
+              is_required: assignment.is_required,
+              created_at: assignment.created_at
             });
           
           if (insertError) throw insertError;
@@ -531,11 +512,11 @@ const getAllSchools = async (): Promise<School[]> => {
           description: school.description,
           icon: school.icon,
           color: school.color,
-          course_count: school.courseCount,
-          student_count: school.studentCount,
-          instructor_count: school.instructorCount,
-          is_active: school.isActive,
-          created_at: school.createdAt
+          course_count: school.course_count,
+          student_count: school.student_count,
+          instructor_count: school.instructor_count,
+          is_active: school.is_active,
+          created_at: school.created_at
         })));
       
       if (insertError) throw insertError;
@@ -577,10 +558,10 @@ const saveAllSchools = async (schools: School[]) => {
               description: school.description,
               icon: school.icon,
               color: school.color,
-              course_count: school.courseCount,
-              student_count: school.studentCount,
-              instructor_count: school.instructorCount,
-              is_active: school.isActive,
+              course_count: school.course_count,
+              student_count: school.student_count,
+              instructor_count: school.instructor_count,
+              is_active: school.is_active,
               updated_at: new Date().toISOString()
             })
             .eq('id', school.id);
@@ -596,11 +577,11 @@ const saveAllSchools = async (schools: School[]) => {
               description: school.description,
               icon: school.icon,
               color: school.color,
-              course_count: school.courseCount,
-              student_count: school.studentCount,
-              instructor_count: school.instructorCount,
-              is_active: school.isActive,
-              created_at: school.createdAt
+              course_count: school.course_count,
+              student_count: school.student_count,
+              instructor_count: school.instructor_count,
+              is_active: school.is_active,
+              created_at: school.created_at
             });
           
           if (insertError) throw insertError;
@@ -619,70 +600,28 @@ const saveAllSchools = async (schools: School[]) => {
 export function useCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
       setLoading(true);
-      try {
-        // Try to get courses from Supabase with full structure
-        const supabaseCourses = await fetchCoursesFromSupabase();
-        if (supabaseCourses) {
-          setCourses(supabaseCourses);
-      } else {
-          // Fallback to localStorage
-          const storedCourses = localStorage.getItem('allCourses');
-          if (storedCourses) {
-            setCourses(JSON.parse(storedCourses));
-          } else {
-            // Initialize with default courses
-            const defaultCourses: Course[] = [
-              {
-                id: '1',
-                title: 'Introduction to React',
-                description: 'Learn the fundamentals of React development',
-                instructor: 'Sarah Johnson',
-                instructorId: '',
-                category: 'school-of-engineering',
-                format: 'mixed',
-                duration: 8,
-                thumbnail: 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=600',
-                lessons: [
-                  { id: '1', title: 'Getting Started', content: 'Introduction to React concepts...', videoUrl: 'https://example.com/video1', duration: 30, sort_order: 1 },
-                  { id: '2', title: 'Components', content: 'Understanding React components...', duration: 45, sort_order: 2 },
-                ],
-                price: 25000,
-                is_published: true,
-                enrolled_count: 150,
-                certificatetemplate: 'default',
-                created_at: '2024-01-15T00:00:00Z',
-              },
-              {
-                id: '2',
-                title: 'Advanced JavaScript',
-                description: 'Master advanced JavaScript concepts and patterns',
-                instructor: 'Mike Chen',
-                instructorId: '',
-                category: 'school-of-engineering',
-                format: 'video',
-                duration: 12,
-                thumbnail: 'https://images.pexels.com/photos/270348/pexels-photo-270348.jpeg?auto=compress&cs=tinysrgb&w=600',
-                lessons: [
-                  { id: '3', title: 'Closures and Scope', content: 'Deep dive into closures...', videoUrl: 'https://example.com/video2', duration: 60, sort_order: 1 },
-                ],
-                price: 35000,
-                is_published: true,
-                enrolled_count: 89,
-                certificatetemplate: 'default',
-                created_at: '2024-01-10T00:00:00Z',
-              },
-            ];
-            setCourses(defaultCourses);
-            localStorage.setItem('allCourses', JSON.stringify(defaultCourses));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching courses:', error);
+      setError(null);
+      // TEMP FIX: Use simple select to avoid 400 error
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*');
+      // Uncomment and debug this after confirming the above works:
+      // const { data, error } = await supabase
+      //   .from('courses')
+      //   .select('*, lessons(*), assignments(*)')
+      //   .order('created_at', { ascending: false })
+      //   .order('created_at', { foreignTable: 'lessons', ascending: false })
+      //   .order('created_at', { foreignTable: 'assignments', ascending: false });
+      if (error) {
+        setError(error.message);
         setCourses([]);
+      } else {
+        setCourses(data as Course[]);
       }
       setLoading(false);
     };
@@ -739,7 +678,8 @@ export function useCourses() {
     deleteCourse,
     getCourseById,
     getCourseBySlug,
-    loading
+    loading,
+    error
   };
 }
 
@@ -1419,4 +1359,52 @@ export function useNotifications() {
     addReply, 
     loading 
   };
+}
+
+export function useCourseStructure(courseId: string) {
+  const [modules, setModules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!courseId) return;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      supabase.from('modules').select('*').eq('course_id', courseId).order('order', { ascending: true }),
+      supabase.from('lessons').select('*').eq('course_id', courseId).order('order', { ascending: true }),
+      supabase.from('assignments').select('*').eq('course_id', courseId)
+    ]).then(([modulesRes, lessonsRes, assignmentsRes]) => {
+      if (modulesRes.error) setError(modulesRes.error.message);
+      if (lessonsRes.error) setError(lessonsRes.error.message);
+      if (assignmentsRes.error) setError(assignmentsRes.error.message);
+      const modules = modulesRes.data || [];
+      const lessons = lessonsRes.data || [];
+      const assignments = assignmentsRes.data || [];
+      let structuredModules = [];
+      if (modules.length > 0) {
+        structuredModules = modules.map(mod => ({
+          ...mod,
+          lessons: lessons.filter(les => les.module_id === mod.id),
+          assignments: assignments.filter(a => a.module_id === mod.id)
+        }));
+      } else {
+        // No modules: treat all lessons as a single module
+        structuredModules = [{
+          id: 'default',
+          title: 'Lessons',
+          description: '',
+          lessons,
+          assignments: assignments.filter(a => !a.module_id)
+        }];
+      }
+      setModules(structuredModules);
+      setLoading(false);
+    }).catch(e => {
+      setError(e.message);
+      setLoading(false);
+    });
+  }, [courseId]);
+
+  return { modules, loading, error };
 }

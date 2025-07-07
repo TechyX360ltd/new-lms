@@ -61,14 +61,19 @@ export function ProgressTracking() {
   const generateProgressData = () => {
     const progressList: UserProgress[] = [];
 
+    if (!users || !Array.isArray(users)) {
+      setProgressData([]);
+      setLoading(false);
+      return;
+    }
+
     users.forEach(user => {
-      if (user.role === 'learner' && user.enrolledCourses.length > 0) {
+      if (user.role === 'learner' && Array.isArray(user.enrolledCourses) && user.enrolledCourses.length > 0) {
         user.enrolledCourses.forEach(courseId => {
           const course = courses.find(c => c.id === courseId);
           if (course) {
-            // Generate realistic progress data
-            const totalLessons = course.lessons.length;
-            const completedLessons = Math.floor(Math.random() * (totalLessons + 1));
+            const totalLessons = Array.isArray(course.lessons) ? course.lessons.length : 0;
+            const completedLessons = Math.floor(Math.random() * (totalLessons + 1)); // Replace with real completion logic if available
             const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
             
             // Determine status based on progress
@@ -81,19 +86,19 @@ export function ProgressTracking() {
               status = 'in-progress';
             }
 
-            // Generate assignment data
-            const totalAssignments = 3; // Assume 3 assignments per course
-            const completedAssignments = Math.floor(Math.random() * (totalAssignments + 1));
+            // Use real assignments
+            const totalAssignments = Array.isArray(course.assignments) ? course.assignments.length : 0;
+            const completedAssignments = Math.floor(Math.random() * (totalAssignments + 1)); // Replace with real completion logic if available
             const pendingAssignments = Math.max(0, totalAssignments - completedAssignments - 1);
             const overdueAssignments = Math.max(0, totalAssignments - completedAssignments - pendingAssignments);
 
             progressList.push({
               userId: user.id,
-              userName: user.name,
+              userName: `${user.first_name} ${user.last_name}`,
               userEmail: user.email,
               courseId: course.id,
               courseName: course.title,
-              enrolledDate: user.createdAt,
+              enrolledDate: user.created_at,
               lastAccessed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
               completedLessons,
               totalLessons,
@@ -198,7 +203,8 @@ export function ProgressTracking() {
       acc[progress.userId] = {
         user: {
           id: progress.userId,
-          name: progress.userName,
+          first_name: progress.userName.split(' ')[0] || '',
+          last_name: progress.userName.split(' ').slice(1).join(' ') || '',
           email: progress.userEmail
         },
         courses: []
@@ -206,7 +212,7 @@ export function ProgressTracking() {
     }
     acc[progress.userId].courses.push(progress);
     return acc;
-  }, {} as Record<string, { user: { id: string; name: string; email: string }; courses: UserProgress[] }>);
+  }, {} as Record<string, { user: { id: string; first_name: string; last_name: string; email: string }; courses: UserProgress[] }>);
 
   // Calculate summary statistics
   const totalUsers = Object.keys(groupedProgress).length;
@@ -353,12 +359,12 @@ export function ProgressTracking() {
                       }
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                         <span className="text-white font-medium text-sm">
-                          {user.firstName[0]}{user.lastName[0]}
+                          {user.first_name[0]}{user.last_name[0]}
                         </span>
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{user.firstName} {user.lastName}</h3>
+                      <h3 className="font-semibold text-gray-900">{user.first_name} {user.last_name}</h3>
                       <p className="text-sm text-gray-500">{user.email}</p>
                     </div>
                   </div>

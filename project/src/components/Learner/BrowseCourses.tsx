@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Users, Star, CheckCircle, Award } from 'lucide-react';
+import { Clock, Users, Star, CheckCircle, Award, Tag } from 'lucide-react';
 import { useCategories } from '../../hooks/useData';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +8,8 @@ import { PaystackButton } from 'react-paystack';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import { useToast } from '../Auth/ToastContext';
+import { CouponInput } from './CouponInput';
+import { CouponValidationResult } from '../../types';
 
 const FILTERS = [
   { key: 'recentlyViewed', label: 'Based on your recent views' },
@@ -35,6 +37,7 @@ export function BrowseCourses() {
   const { showToast } = useToast();
   const [coinLoading, setCoinLoading] = useState<string | null>(null); // courseId or null
   const [coinConfirmCourse, setCoinConfirmCourse] = useState<any>(null); // course to confirm coin payment
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
 
   useEffect(() => {
     async function fetchCourses() {
@@ -97,12 +100,14 @@ export function BrowseCourses() {
     }
     setShowPaymentModal(false);
     setSelectedCourse(null);
+    setAppliedCoupon(null);
     setShowSuccessModal(true);
   };
 
   const handlePaymentClose = () => {
     setShowPaymentModal(false);
     setSelectedCourse(null);
+    setAppliedCoupon(null);
   };
 
   const handleStartLearning = () => {
@@ -186,6 +191,14 @@ export function BrowseCourses() {
   };
   const handleCoinConfirmCancel = () => {
     setCoinConfirmCourse(null);
+  };
+
+  const handleCouponApplied = (result: CouponValidationResult) => {
+    setAppliedCoupon(result);
+  };
+
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
   };
 
   // --- Course Card ---
@@ -328,18 +341,40 @@ export function BrowseCourses() {
               You are about to enroll in <span className="font-semibold text-blue-700">{selectedCourse.title}</span>
               <br />
               <span className="text-lg font-bold text-green-700 mt-2 block">
-                ₦{selectedCourse.price?.toLocaleString?.() ?? selectedCourse.price}
+                ₦{appliedCoupon ? appliedCoupon.final_amount?.toLocaleString() : selectedCourse.price?.toLocaleString?.() ?? selectedCourse.price}
               </span>
+              {appliedCoupon && (
+                <span className="text-sm text-gray-500 line-through">
+                  ₦{selectedCourse.price?.toLocaleString?.() ?? selectedCourse.price}
+                </span>
+              )}
             </p>
+
+            {/* Coupon Input */}
+            <div className="w-full mb-6">
+              <CouponInput
+                courseId={selectedCourse.id}
+                originalAmount={selectedCourse.price}
+                onCouponApplied={handleCouponApplied}
+                onCouponRemoved={handleCouponRemoved}
+                appliedCoupon={appliedCoupon || undefined}
+              />
+            </div>
+
             <PaystackButton
               publicKey={PAYSTACK_PUBLIC_KEY}
               email={user?.email || 'test@example.com'}
-              amount={selectedCourse.price * 100}
+              amount={(appliedCoupon ? appliedCoupon.final_amount : selectedCourse.price) * 100}
               currency="NGN"
               text="Pay with Paystack"
               onSuccess={handlePaymentSuccess}
               onClose={handlePaymentClose}
-              metadata={{ courseId: selectedCourse.id, userId: user?.id, custom_fields: [] }}
+              metadata={{ 
+                courseId: selectedCourse.id, 
+                userId: user?.id, 
+                couponId: appliedCoupon?.coupon_id,
+                custom_fields: [] 
+              }}
               className="bg-blue-600 hover:bg-blue-700 transition-colors text-white px-6 py-3 rounded-lg font-semibold text-lg w-full mb-3"
             />
             <button

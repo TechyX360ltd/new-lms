@@ -1,17 +1,69 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Users, BookOpen, TrendingUp, Clock, Award } from 'lucide-react';
 import { useCourses, useUsers, usePayments } from '../../hooks/useData';
+import { supabase } from '../../lib/supabase';
 
 export function AdminOverview() {
   const { courses, loading: coursesLoading } = useCourses();
   const { users, loading: usersLoading } = useUsers();
   const { payments, loading: paymentsLoading } = usePayments();
 
-  if (coursesLoading || usersLoading || paymentsLoading) {
+  const [overview, setOverview] = useState({
+    totalUsers: null,
+    totalCourses: null,
+    totalRevenue: null,
+    totalEnrollments: null,
+    loading: true,
+    error: null,
+  });
+
+  useEffect(() => {
+    console.log('fetchOverview useEffect running');
+    async function fetchOverview() {
+      console.log('fetchOverview function running');
+      setOverview(prev => ({ ...prev, loading: true }));
+      console.log('Calling get_total_users');
+      const usersRes = await supabase.rpc('get_total_users');
+      console.log('get_total_users result:', usersRes);
+      console.log('Calling get_total_courses');
+      const coursesRes = await supabase.rpc('get_total_courses');
+      console.log('get_total_courses result:', coursesRes);
+      console.log('Calling get_total_revenue');
+      const revenueRes = await supabase.rpc('get_total_revenue');
+      console.log('get_total_revenue result:', revenueRes);
+      console.log('Calling get_total_enrollments');
+      const enrollmentsRes = await supabase.rpc('get_total_enrollments');
+      console.log('get_total_enrollments result:', enrollmentsRes);
+      setOverview({
+        totalUsers: usersRes.data,
+        totalCourses: coursesRes.data,
+        totalRevenue: revenueRes.data,
+        totalEnrollments: enrollmentsRes.data,
+        loading: false,
+        error: usersRes.error || coursesRes.error || revenueRes.error || enrollmentsRes.error,
+      });
+      console.log('Overview state set:', {
+        totalUsers: usersRes.data,
+        totalCourses: coursesRes.data,
+        totalRevenue: revenueRes.data,
+        totalEnrollments: enrollmentsRes.data,
+        error: usersRes.error || coursesRes.error || revenueRes.error || enrollmentsRes.error,
+      });
+    }
+    fetchOverview();
+  }, []);
+
+  if (overview.loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
+    );
+  }
+
+  if (overview.error) {
+    return (
+      <div className="text-red-600 p-8">Error loading overview data. Please check your Supabase functions and try again.<br/>{overview.error.message || String(overview.error)}</div>
     );
   }
 
@@ -22,31 +74,29 @@ export function AdminOverview() {
   const stats = [
     {
       title: 'Total Users',
-      value: users.length.toString(),
+      value: overview.totalUsers ?? '—',
       icon: Users,
       color: 'bg-blue-500',
-      change: '+12%',
     },
     {
-      title: 'Active Courses',
-      value: courses.filter(c => c.isPublished).length.toString(),
+      title: 'Total Courses',
+      value: overview.totalCourses ?? '—',
       icon: BookOpen,
       color: 'bg-green-500',
-      change: '+8%',
     },
     {
       title: 'Total Revenue',
-      value: `₦${totalRevenue.toLocaleString()}`,
+      value: overview.totalRevenue !== null && overview.totalRevenue !== undefined
+        ? `₦${Number(overview.totalRevenue).toLocaleString()}`
+        : '—',
       icon: TrendingUp,
       color: 'bg-purple-500',
-      change: '+23%',
     },
     {
       title: 'Enrollments',
-      value: courses.reduce((sum, c) => sum + c.enrolledCount, 0).toString(),
+      value: overview.totalEnrollments ?? '—',
       icon: TrendingUp,
       color: 'bg-orange-500',
-      change: '+15%',
     },
   ];
 
@@ -76,7 +126,6 @@ export function AdminOverview() {
                 <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-sm font-medium text-green-600">{stat.change}</span>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>

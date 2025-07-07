@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import InviteeSelector from './InviteeSelector';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { Course } from '../../types';
 
 const platforms = [
   { value: 'zoom', label: 'Zoom' },
@@ -15,7 +16,12 @@ const recurrenceOptions = [
   { value: 'custom', label: 'Custom' },
 ];
 
-export default function ScheduleSessionForm() {
+interface ScheduleSessionFormProps {
+  courses: Course[];
+  onSessionCreated: () => void;
+}
+
+export default function ScheduleSessionForm({ courses, onSessionCreated }: ScheduleSessionFormProps) {
   const { user } = useAuth();
   const [form, setForm] = useState({
     courseId: '',
@@ -33,20 +39,9 @@ export default function ScheduleSessionForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [courses, setCourses] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [learners, setLearners] = useState<any[]>([]);
   const [learnersLoading, setLearnersLoading] = useState(false);
-
-  // Fetch courses from Supabase
-  useEffect(() => {
-    (async () => {
-      setCoursesLoading(true);
-      const { data, error } = await supabase.from('courses').select('id, title');
-      setCourses(data || []);
-      setCoursesLoading(false);
-    })();
-  }, []);
 
   // Fetch learners for selected course
   useEffect(() => {
@@ -159,6 +154,7 @@ export default function ScheduleSessionForm() {
         invitees: [],
         joinLink: '',
       });
+      onSessionCreated();
     } catch (err: any) {
       setError('Failed to schedule session. ' + (err?.message || ''));
     } finally {

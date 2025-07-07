@@ -38,6 +38,9 @@ import { GamificationDashboard } from './components/Gamification/GamificationDas
 import { StoreManagement } from './components/Admin/StoreManagement';
 import { BadgeManagement } from './components/Admin/BadgeManagement';
 import { GamificationModeration } from './components/Admin/GamificationModeration';
+import { CouponManagement } from './components/Admin/CouponManagement';
+import { RatingManagement } from './components/Admin/RatingManagement';
+import { RatingTest } from './components/Admin/RatingTest';
 import { AdminSidebar } from './components/Admin/Sidebar';
 import ReferralsPage from './pages/ReferralsPage';
 import AdminReferralsPage from './pages/AdminReferralsPage';
@@ -138,11 +141,14 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode,
 
 function AdminLayout() {
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar />
-      <main className="flex-1 bg-gray-50 p-8">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header />
+        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
@@ -248,6 +254,9 @@ function AppContent() {
           <Route path="store" element={<StoreManagement />} />
           <Route path="badges" element={<BadgeManagement />} />
           <Route path="moderation" element={<GamificationModeration />} />
+          <Route path="coupons" element={<CouponManagement />} />
+          <Route path="ratings" element={<RatingManagement />} />
+          <Route path="rating-test" element={<RatingTest />} />
           <Route path="referrals" element={<AdminReferralsPage />} />
         </Route>
 

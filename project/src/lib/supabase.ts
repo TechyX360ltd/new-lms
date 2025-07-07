@@ -28,3 +28,41 @@ const createMockSupabaseClient = () => {
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient<Database>(supabaseUrl, supabaseAnonKey)
   : createMockSupabaseClient();
+
+// Get a user's note for a lesson
+export async function getLessonNote(userId: string, lessonId: string) {
+  const { data, error } = await supabase
+    .from('lesson_notes')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('lesson_id', lessonId)
+    .single();
+  if (error && error.code !== 'PGRST116') return { error };
+  return { note: data };
+}
+
+// Upsert (insert or update) a user's note for a lesson
+export async function upsertLessonNote(userId: string, lessonId: string, content: string) {
+  const { data, error } = await supabase
+    .from('lesson_notes')
+    .upsert([{ user_id: userId, lesson_id: lessonId, content }], { onConflict: ['user_id', 'lesson_id'] });
+  return { data, error };
+}
+
+// Get all discussion comments for a lesson
+export async function getLessonDiscussions(lessonId: string) {
+  const { data, error } = await supabase
+    .from('lesson_discussions')
+    .select('*')
+    .eq('lesson_id', lessonId)
+    .order('created_at', { ascending: true });
+  return { discussions: data, error };
+}
+
+// Add a new discussion comment (or reply) for a lesson
+export async function addLessonDiscussion(userId: string, lessonId: string, content: string, parentId?: string) {
+  const { data, error } = await supabase
+    .from('lesson_discussions')
+    .insert([{ user_id: userId, lesson_id: lessonId, content, parent_id: parentId || null }]);
+  return { data, error };
+}

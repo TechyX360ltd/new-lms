@@ -187,24 +187,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (session) {
         try {
-          // Get user data from Supabase
+          // Get user data from Supabase, including enrollments
           const { data: userData, error } = await supabase
             .from('users')
-            .select('*')
+            .select('*, user_courses(user_id, course_id, status)')
             .eq('id', session.user.id)
             .single();
           
           if (error) throw error;
           
           if (userData) {
-            // Get user enrollments
-            const { data: enrollments, error: enrollmentsError } = await supabase
-              .from('user_courses')
-              .select('course_id, status')
-              .eq('user_id', userData.id);
-            
-            if (enrollmentsError) throw enrollmentsError;
-            
+            // Debug: log raw userData from Supabase
+            console.log('Raw userData from Supabase:', userData);
             // Format user data to match our app's structure
             const formattedUser = {
               id: userData.id,
@@ -221,14 +215,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               referral_code: userData.referral_code,
               referred_by: userData.referred_by,
               coins: userData.coins || 0,
-              enrolledCourses: enrollments
-                ? enrollments.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
+              enrolledCourses: userData.user_courses
+                ? userData.user_courses.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
                 : [],
-              completedCourses: enrollments
-                ? enrollments.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
+              completedCourses: userData.user_courses
+                ? userData.user_courses.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
                 : [],
               createdAt: userData.created_at,
             };
+            // Debug: log mapped formattedUser
+            console.log('Mapped formattedUser for context:', formattedUser);
             
             dispatch({ type: 'LOGIN', payload: formattedUser });
             return;
@@ -277,10 +273,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw error;
         }
         if (data.user) {
-          // Get user data from Supabase
+          // Get user data from Supabase, including enrollments
           const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('*')
+            .select('*, user_courses(user_id, course_id, status)')
             .eq('id', data.user.id)
             .single();
           if (userError) {
@@ -288,15 +284,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw userError;
           }
           if (userData) {
-            // Get user enrollments
-            const { data: enrollments, error: enrollmentsError } = await supabase
-              .from('user_courses')
-              .select('course_id, status')
-              .eq('user_id', userData.id);
-            if (enrollmentsError) {
-              dispatch({ type: 'SET_LOADING', payload: false });
-              throw enrollmentsError;
-            }
+            // Debug: log raw userData from Supabase
+            console.log('Raw userData from Supabase:', userData);
             // Format user data to match our app's structure
             const formattedUser = {
               id: userData.id,
@@ -313,33 +302,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               referral_code: userData.referral_code,
               referred_by: userData.referred_by,
               coins: userData.coins || 0,
-              enrolledCourses: enrollments
-                ? enrollments.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
+              enrolledCourses: userData.user_courses
+                ? userData.user_courses.filter((e: any) => e.status === 'enrolled').map((e: any) => e.course_id)
                 : [],
-              completedCourses: enrollments
-                ? enrollments.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
+              completedCourses: userData.user_courses
+                ? userData.user_courses.filter((e: any) => e.status === 'completed').map((e: any) => e.course_id)
                 : [],
               createdAt: userData.created_at,
             };
+            // Debug: log mapped formattedUser
+            console.log('Mapped formattedUser for context:', formattedUser);
+            
             dispatch({ type: 'LOGIN', payload: formattedUser });
+            dispatch({ type: 'SET_LOADING', payload: false });
             return;
           }
         }
       }
       // Fallback to localStorage if Supabase auth fails
-      const allUsers = await getAllUsers();
-      const user = allUsers.find((u: any) => u.email === email);
-      if (user && user.password === password) {
-        // Remove password from user object before storing
-        const { password: _, ...userWithoutPassword } = user;
-        localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-        dispatch({ type: 'LOGIN', payload: userWithoutPassword });
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        // Ensure user has completedCourses array and profile fields
+        const updatedUser = {
+          ...user,
+          completedCourses: user.completedCourses || [],
+          bio: user.bio || '',
+          location: user.location || '',
+          occupation: user.occupation || '',
+          education: user.education || '',
+          avatar: user.avatar || null,
+          coins: user.coins || 0,
+          created_at: user.created_at || new Date().toISOString(),
+        };
+        dispatch({ type: 'LOGIN', payload: updatedUser });
+        dispatch({ type: 'SET_LOADING', payload: false });
       } else {
         dispatch({ type: 'SET_LOADING', payload: false });
-        throw new Error('Invalid credentials');
       }
     } catch (error) {
-      console.error('Login error:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
       throw error;
     }
@@ -363,7 +364,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (authError) throw authError;
         if (authData.user) {
-          // Create user profile in the users table
+          // Debug: Log the UID and insert ID
+          console.log('Auth UID:', authData.user.id);
+          console.log('Insert ID:', authData.user.id);
+
+          // Minimal insert for debugging
+          const { data: minimalData, error: minimalError } = await supabase
+            .from('users')
+            .insert({ id: authData.user.id });
+          console.log('Minimal insert error:', minimalError);
+
+          // Create user profile in the users table (full insert)
           const { data: newUser, error: userError } = await supabase
             .from('users')
             .insert({

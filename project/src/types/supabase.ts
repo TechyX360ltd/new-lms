@@ -558,6 +558,58 @@ export interface Database {
           updated_at?: string | null
         }
       }
+      lesson_notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          lesson_id: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          lesson_id: string;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          lesson_id?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      lesson_discussions: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          user_id: string;
+          content: string;
+          parent_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          user_id: string;
+          content: string;
+          parent_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          lesson_id?: string;
+          user_id?: string;
+          content?: string;
+          parent_id?: string | null;
+          created_at?: string;
+        };
+      };
     }
     Views: {
       [_ in never]: never
