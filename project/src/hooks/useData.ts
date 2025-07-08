@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { keysToCamel } from '../lib/caseUtils';
 import { useToast } from '../components/Auth/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { Module, Lesson } from '../types';
 
 // School interface (replacing Category)
 interface School {
@@ -125,6 +126,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
     // Try to save to Supabase first
       for (const course of courses) {
         // Check if course exists
+        if (!isValidUUID(course.id)) throw new Error('Invalid course.id: must be UUID');
         const { data: existingCourse, error: checkError } = await supabase
           .from('courses')
           .select('id')
@@ -181,6 +183,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
         if (course.modules) {
           for (const module of course.modules) {
             // Check if module exists
+            if (!isValidUUID(module.id)) throw new Error('Invalid module.id: must be UUID');
             const { data: existingModule, error: moduleCheckError } = await supabase
               .from('modules')
               .select('id')
@@ -222,6 +225,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
             if (module.lessons) {
               for (const lesson of module.lessons) {
                 // Check if lesson exists
+                if (!isValidUUID(lesson.id)) throw new Error('Invalid lesson.id: must be UUID');
                 const { data: existingLesson, error: lessonCheckError } = await supabase
                   .from('lessons')
                   .select('id')
@@ -270,6 +274,7 @@ const saveAllCourses = async (courses: Course[]): Promise<void> => {
           // Handle lessons without modules
           for (const lesson of course.lessons) {
             // Check if lesson exists
+            if (!isValidUUID(lesson.id)) throw new Error('Invalid lesson.id: must be UUID');
             const { data: existingLesson, error: lessonCheckError } = await supabase
               .from('lessons')
               .select('id')
@@ -633,10 +638,13 @@ export function useCourses() {
       .from('courses')
       .insert([newCourse])
       .select();
-    if (!error && data) {
+    console.log('addCourse result:', { data, error });
+    if (!error && data && Array.isArray(data) && data[0]?.id) {
       setCourses(prev => [data[0], ...prev]);
+      return { data, error };
+    } else {
+      throw new Error('Course creation failed - no course ID returned');
     }
-    return { data, error };
   };
 
   const updateCourse = async (courseId: string, updatedCourse: Partial<Course>) => {
@@ -940,11 +948,12 @@ export function useNotifications() {
         .from('users')
         .select('id, first_name, last_name, email');
       if (usersError) throw usersError;
-      
+      // Defensive: always use arrays
+      const safeNotifications = notificationsData || [];
+      const safeUsers = users || [];
       // Format notifications to match our app's structure
-      const formattedNotifications = notificationsData.map((notification: any) => {
-        const sender = users?.find((u: any) => u.id === notification.sender_id);
-        
+      const formattedNotifications = safeNotifications.map((notification: any) => {
+        const sender = safeUsers.find((u: any) => u.id === notification.sender_id);
         return {
           id: notification.id,
           title: notification.title,
@@ -953,9 +962,8 @@ export function useNotifications() {
           priority: notification.priority,
           senderId: notification.sender_id,
           senderName: sender ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.email || 'Unknown User' : 'Unknown User',
-          recipients: notification.recipients.map((recipient: any) => {
-            const user = users?.find((u: any) => u.id === recipient.user_id);
-            
+          recipients: (notification.recipients || []).map((recipient: any) => {
+            const user = safeUsers.find((u: any) => u.id === recipient.user_id);
             return {
               userId: recipient.user_id,
               userName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown User' : 'Unknown User',
@@ -967,16 +975,15 @@ export function useNotifications() {
           }),
           courseId: notification.course_id,
           createdAt: notification.created_at,
-          attachments: notification.attachments.map((attachment: any) => ({
+          attachments: (notification.attachments || []).map((attachment: any) => ({
             id: attachment.id,
             name: attachment.name,
             type: attachment.type,
             size: attachment.size,
             url: attachment.url
           })),
-          replies: notification.replies.map((reply: any) => {
-            const replyUser = users?.find(u => u.id === reply.user_id);
-            
+          replies: (notification.replies || []).map((reply: any) => {
+            const replyUser = safeUsers.find((u: any) => u.id === reply.user_id);
             return {
               id: reply.id,
               notificationId: reply.notification_id,
@@ -988,7 +995,6 @@ export function useNotifications() {
           })
         };
       });
-      
       return formattedNotifications;
     } catch (error) {
       console.error('Error formatting notifications:', error);
@@ -1001,12 +1007,7 @@ export function useNotifications() {
       try {
         const { data: notificationsData, error } = await supabase
           .from('notifications')
-          .select(`
-            *,
-            recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
-            attachments:notification_attachments(*),
-            replies:notification_replies(*)
-          `);
+          .select('*');
         
         if (error) throw error;
         
@@ -1049,12 +1050,7 @@ export function useNotifications() {
           try {
             const { data: notificationsData, error } = await supabase
               .from('notifications')
-              .select(`
-                *,
-                recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
-                attachments:notification_attachments(*),
-                replies:notification_replies(*)
-              `);
+              .select('*');
             if (error) throw error;
             if (notificationsData && notificationsData.length > 0) {
               const formattedNotifications = await formatNotifications(notificationsData);
@@ -1089,321 +1085,89 @@ export function useNotifications() {
           try {
             const { data: notificationsData, error } = await supabase
               .from('notifications')
-              .select(`
-                *,
-                recipients:notification_recipients(id, user_id, is_read, read_at, is_starred, starred_at),
-                attachments:notification_attachments(*),
-                replies:notification_replies(*)
-              `);
-            
+              .select('*');
             if (error) throw error;
-            
             if (notificationsData && notificationsData.length > 0) {
               const formattedNotifications = await formatNotifications(notificationsData);
-              
               setNotifications(formattedNotifications);
             }
           } catch (error) {
-            console.error('Error updating notifications from real-time recipient change:', error);
+            console.error('Error updating notifications from real-time:', error);
           }
         }
       )
-      .subscribe();
-
-    // Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(notificationsChannel);
-    };
   }, []);
 
-  const addNotification = async (newNotification: Notification) => {
-    try {
-        // Insert notification
-        const { data: notification, error: notificationError } = await supabase
-          .from('notifications')
-          .insert({
-            id: newNotification.id,
-            title: newNotification.title,
-            message: newNotification.message,
-            type: newNotification.type,
-            priority: newNotification.priority,
-            sender_id: newNotification.senderId,
-            course_id: newNotification.courseId,
-            scheduled_for: newNotification.scheduledFor,
-            created_at: newNotification.createdAt
-          })
-          .select()
-          .single();
-        
-      if (notificationError) {
-        console.error('Supabase notification insert error:', notificationError);
-        throw notificationError;
-      }
-        
-        // Insert recipients
-        for (const recipient of newNotification.recipients) {
-        const recipientPayload: any = {
-              notification_id: notification.id,
-              user_id: recipient.userId,
-          is_read: recipient.isRead
-        };
-        if (recipient.readAt) recipientPayload.read_at = recipient.readAt;
-        if (recipient.isStarred !== undefined) recipientPayload.is_starred = recipient.isStarred;
-        if (recipient.starredAt) recipientPayload.starred_at = recipient.starredAt;
-        const { error: recipientError } = await supabase
-          .from('notification_recipients')
-          .insert(recipientPayload);
-        if (recipientError) {
-          console.error('Supabase recipient insert error:', recipientError, recipientPayload);
-          throw recipientError;
-        }
-        }
-        
-        // Insert attachments if any
-        if (newNotification.attachments && newNotification.attachments.length > 0) {
-          for (const attachment of newNotification.attachments) {
-            const { error: attachmentError } = await supabase
-              .from('notification_attachments')
-              .insert({
-                id: attachment.id,
-                notification_id: notification.id,
-                name: attachment.name,
-                type: attachment.type,
-                size: attachment.size,
-                url: attachment.url
-              });
-            
-            if (attachmentError) throw attachmentError;
-          }
-        }
-        
-        return;
-    } catch (error) {
-      console.error('Error adding notification to Supabase:', error);
-    }
-    
-    // Fallback to localStorage if Supabase fails
-    const updatedNotifications = [newNotification, ...notifications];
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-  };
-
-  const markAsRead = async (notificationId: string, userId: string) => {
-    try {
-        // Update notification recipient
-        const { error } = await supabase
-          .from('notification_recipients')
-          .update({
-            is_read: true,
-            read_at: new Date().toISOString()
-          })
-          .eq('notification_id', notificationId)
-          .eq('user_id', userId);
-        
-        if (error) throw error;
-        
-        // Update local state
-        const updatedNotifications = notifications.map(notification => {
-          if (notification.id === notificationId) {
-            return {
-              ...notification,
-              recipients: notification.recipients.map(recipient =>
-                recipient.userId === userId
-                  ? { ...recipient, isRead: true, readAt: new Date().toISOString() }
-                  : recipient
-              )
-            };
-          }
-          return notification;
-        });
-        
-        setNotifications(updatedNotifications);
-        return;
-    } catch (error) {
-      console.error('Error marking notification as read in Supabase:', error);
-    }
-    
-    // Fallback to localStorage if Supabase fails
-    const updatedNotifications = notifications.map(notification => {
-      if (notification.id === notificationId) {
-        return {
-          ...notification,
-          recipients: notification.recipients.map(recipient =>
-            recipient.userId === userId
-              ? { ...recipient, isRead: true, readAt: new Date().toISOString() }
-              : recipient
-          )
-        };
-      }
-      return notification;
-    });
-    
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-  };
-
-  const markAsStarred = async (notificationId: string, userId: string, isStarred: boolean) => {
-    try {
-        // Update notification recipient
-        const { error } = await supabase
-          .from('notification_recipients')
-          .update({
-            is_starred: isStarred,
-            starred_at: isStarred ? new Date().toISOString() : null
-          })
-          .eq('notification_id', notificationId)
-          .eq('user_id', userId);
-        
-        if (error) throw error;
-        
-        // Update local state
-        const updatedNotifications = notifications.map(notification => {
-          if (notification.id === notificationId) {
-            return {
-              ...notification,
-              recipients: notification.recipients.map(recipient =>
-                recipient.userId === userId
-                  ? { 
-                      ...recipient, 
-                      isStarred, 
-                      starredAt: isStarred ? new Date().toISOString() : undefined 
-                    }
-                  : recipient
-              )
-            };
-          }
-          return notification;
-        });
-        
-        setNotifications(updatedNotifications);
-        return;
-    } catch (error) {
-      console.error('Error marking notification as starred in Supabase:', error);
-    }
-    
-    // Fallback to localStorage if Supabase fails
-    const updatedNotifications = notifications.map(notification => {
-      if (notification.id === notificationId) {
-        return {
-          ...notification,
-          recipients: notification.recipients.map(recipient =>
-            recipient.userId === userId
-              ? { 
-                  ...recipient, 
-                  isStarred, 
-                  starredAt: isStarred ? new Date().toISOString() : undefined 
-                }
-              : recipient
-          )
-        };
-      }
-      return notification;
-    });
-    
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-  };
-
-  const addReply = async (reply: NotificationReply) => {
-    try {
-        // Insert reply
-        const { error } = await supabase
-          .from('notification_replies')
-          .insert({
-            id: reply.id,
-            notification_id: reply.notificationId,
-            user_id: reply.userId,
-            message: reply.message,
-            created_at: reply.createdAt
-          });
-        
-        if (error) throw error;
-        
-        // Update local state
-        const updatedNotifications = notifications.map(notification => {
-          if (notification.id === reply.notificationId) {
-            return {
-              ...notification,
-              replies: [...(notification.replies || []), reply]
-            };
-          }
-          return notification;
-        });
-        
-        setNotifications(updatedNotifications);
-        return;
-    } catch (error) {
-      console.error('Error adding reply to Supabase:', error);
-    }
-    
-    // Fallback to localStorage if Supabase fails
-    const updatedNotifications = notifications.map(notification => {
-      if (notification.id === reply.notificationId) {
-        return {
-          ...notification,
-          replies: [...(notification.replies || []), reply]
-        };
-      }
-      return notification;
-    });
-    
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
-  };
-
-  return { 
-    notifications, 
-    addNotification, 
-    markAsRead, 
-    markAsStarred, 
-    addReply, 
-    loading 
-  };
+  return { notifications, setNotifications, loading };
 }
 
 export function useCourseStructure(courseId: string) {
-  const [modules, setModules] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId || !/^[0-9a-fA-F-]{36}$/.test(courseId)) {
+      setModules([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
-    Promise.all([
-      supabase.from('modules').select('*').eq('course_id', courseId).order('order', { ascending: true }),
-      supabase.from('lessons').select('*').eq('course_id', courseId).order('order', { ascending: true }),
-      supabase.from('assignments').select('*').eq('course_id', courseId)
-    ]).then(([modulesRes, lessonsRes, assignmentsRes]) => {
-      if (modulesRes.error) setError(modulesRes.error.message);
-      if (lessonsRes.error) setError(lessonsRes.error.message);
-      if (assignmentsRes.error) setError(assignmentsRes.error.message);
-      const modules = modulesRes.data || [];
-      const lessons = lessonsRes.data || [];
-      const assignments = assignmentsRes.data || [];
-      let structuredModules = [];
-      if (modules.length > 0) {
-        structuredModules = modules.map(mod => ({
+    async function fetchStructure() {
+      try {
+        // Fetch modules for the course
+        const { data: modulesData, error: modulesError } = await supabase
+          .from('modules')
+          .select('*')
+          .eq('course_id', courseId)
+          .order('order', { ascending: true });
+        if (modulesError) throw modulesError;
+        if (!modulesData) {
+          setModules([]);
+          setLoading(false);
+          return;
+        }
+        // Fetch lessons for the course
+        const { data: lessonsData, error: lessonsError } = await supabase
+          .from('lessons')
+          .select('*')
+          .eq('course_id', courseId);
+        if (lessonsError) throw lessonsError;
+        // Fetch assignments for the course
+        const { data: assignmentsData, error: assignmentsError } = await supabase
+          .from('assignments')
+          .select('*')
+          .eq('course_id', courseId);
+        if (assignmentsError) throw assignmentsError;
+        // Group lessons by module_id
+        const lessonsByModule: { [moduleId: string]: Lesson[] } = {};
+        (lessonsData || []).forEach((lesson: Lesson) => {
+          if (!lessonsByModule[lesson.module_id]) lessonsByModule[lesson.module_id] = [];
+          lessonsByModule[lesson.module_id].push(lesson);
+        });
+        // Group assignments by module_id (optional, if you want to attach to modules)
+        const assignmentsByModule: { [moduleId: string]: Assignment[] } = {};
+        (assignmentsData || []).forEach((assignment: Assignment) => {
+          if (!assignmentsByModule[assignment.module_id]) assignmentsByModule[assignment.module_id] = [];
+          assignmentsByModule[assignment.module_id].push(assignment);
+        });
+        // Attach lessons and assignments to modules
+        const structuredModules = (modulesData || []).map((mod: Module) => ({
           ...mod,
-          lessons: lessons.filter(les => les.module_id === mod.id),
-          assignments: assignments.filter(a => a.module_id === mod.id)
+          lessons: lessonsByModule[mod.id] || [],
+          assignments: assignmentsByModule[mod.id] || [],
         }));
-      } else {
-        // No modules: treat all lessons as a single module
-        structuredModules = [{
-          id: 'default',
-          title: 'Lessons',
-          description: '',
-          lessons,
-          assignments: assignments.filter(a => !a.module_id)
-        }];
+        setModules(structuredModules);
+        setLoading(false);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch course structure');
+        setModules([]);
+        setLoading(false);
       }
-      setModules(structuredModules);
-      setLoading(false);
-    }).catch(e => {
-      setError(e.message);
-      setLoading(false);
-    });
+    }
+    fetchStructure();
   }, [courseId]);
 
   return { modules, loading, error };

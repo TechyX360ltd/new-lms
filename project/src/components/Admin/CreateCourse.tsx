@@ -32,37 +32,11 @@ import { useCategories, useUsers } from '../../hooks/useData';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 import { useToast } from '../Auth/ToastContext';
 import { Header } from '../Layout/Header';
-
-interface Module {
-  id: string;
-  title: string;
-  description: string;
-  sort_order: number;
-  lessons: Lesson[];
-  assignments?: Assignment[];
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  content: string;
-  contentType: 'text' | 'video' | 'document' | 'image';
-  attachments: string[];
-  duration: number;
-  sort_order: number;
-  videoUrl?: string;
-}
-
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  maxPoints: number;
-}
+import { supabase } from '../../lib/supabase';
+import { Course, Module, Lesson, Assignment } from '../../types';
 
 interface CreateCourseProps {
-  onSave: (courseData: any) => void;
+  onSave: (courseData: any) => Promise<{ data: any; error: any } | void>;
   onCancel: () => void;
 }
 
@@ -123,6 +97,10 @@ function slugify(text: string) {
     .replace(/--+/g, '-')            // Replace multiple - with single -
     .replace(/^-+/, '')              // Trim - from start of text
     .replace(/-+$/, '');             // Trim - from end of text
+}
+
+function isValidUUID(id: string | undefined | null): boolean {
+  return !!id && /^[0-9a-fA-F-]{36}$/.test(id);
 }
 
 export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
@@ -312,7 +290,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
 
   const addModule = () => {
     const newModule: Module = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: '',
       description: '',
       sort_order: modules.length + 1,
@@ -337,7 +315,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
 
   const addLesson = (moduleId: string) => {
     const newLesson: Lesson = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: '',
       content: '',
       contentType: 'text',
@@ -471,7 +449,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
             const res = JSON.parse(xhr.responseText);
             // Save the video URL to the lesson
             if (videoModal.moduleId && videoModal.lessonId) {
-              updateLesson(videoModal.moduleId, videoModal.lessonId, 'videoUrl', res.secure_url);
+              updateLesson(videoModal.moduleId, videoModal.lessonId, 'video_url', res.secure_url);
             }
             setVideoModal({ open: false, moduleId: null, lessonId: null });
             setVideoUploadProgress(0);
@@ -495,11 +473,11 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
   // Filter instructors for dropdown
   const instructors = users
     .filter(u => u.role === 'instructor' && (
-      (u.firstName + ' ' + u.lastName).toLowerCase().includes(instructorSearch.toLowerCase()) ||
+      (u.first_name + ' ' + u.last_name).toLowerCase().includes(instructorSearch.toLowerCase()) ||
       u.email.toLowerCase().includes(instructorSearch.toLowerCase())
     ))
     .map(i => (
-      <option key={i.id} value={i.id}>{i.firstName} {i.lastName} ({i.email})</option>
+      <option key={i.id} value={i.id}>{i.first_name} {i.last_name} ({i.email})</option>
     ));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -531,9 +509,113 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
         certificatetemplate: courseData.certificatetemplate,
       };
       console.log('Course payload being sent (Create):', coursePayload);
-      await onSave(coursePayload);
+      const result = await onSave(coursePayload);
+      
+      // Get the course ID from the result
+      let courseId: string;
+      if (result && typeof result === 'object' && 'data' in result) {
+        // onSave returns { data, error }
+        if (result.error) {
+          throw result.error;
+        }
+        courseId = result.data?.id || result.data?.[0]?.id;
+      } else {
+        // onSave returns void or the course data directly
+        throw new Error('Course creation failed - no course ID returned');
+      }
+      
+      if (!courseId) {
+        throw new Error('Failed to get created course ID');
+      }
+
+      console.log('Course created with ID:', courseId);
+
+      // Save modules, lessons, and assignments to database
+      for (const mod of modules) {
+        console.log('Saving module:', mod);
+        if (!isValidUUID(mod.id) || !isValidUUID(courseId)) {
+          console.error('Invalid UUID for module or course:', mod.id, courseId);
+          continue;
+        }
+        const { error: modError } = await supabase
+          .from('modules')
+          .upsert({
+            id: mod.id,
+            course_id: courseId,
+            title: mod.title,
+            description: mod.description,
+            order: mod.sort_order,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        if (modError) {
+          console.error('Module upsert error:', modError, mod);
+          throw modError;
+        }
+
+        // Save lessons for this module
+        for (const les of mod.lessons) {
+          console.log('Saving lesson:', les);
+          if (!isValidUUID(les.id) || !isValidUUID(mod.id) || !isValidUUID(courseId)) {
+            console.error('Invalid UUID for lesson, module, or course:', les.id, mod.id, courseId);
+            continue;
+          }
+          const { error: lesError } = await supabase
+            .from('lessons')
+            .upsert({
+              id: les.id,
+              course_id: courseId,
+              module_id: mod.id,
+              title: les.title,
+              content: les.content,
+              video_url: les.video_url || null,
+              duration: les.duration,
+              order: les.sort_order,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          if (lesError) {
+            console.error('Lesson upsert error:', lesError, les);
+            throw lesError;
+          }
+        }
+
+        // Save assignments for this module (if present)
+        if (mod.assignments && Array.isArray(mod.assignments)) {
+          for (const assn of mod.assignments) {
+            console.log('Saving assignment:', assn);
+            if (!isValidUUID(assn.id) || !isValidUUID(mod.id) || !isValidUUID(courseId)) {
+              console.error('Invalid UUID for assignment, module, or course:', assn.id, mod.id, courseId);
+              continue;
+            }
+            const { error: assnError } = await supabase
+              .from('assignments')
+              .upsert({
+                id: assn.id,
+                course_id: courseId,
+                module_id: mod.id,
+                title: assn.title,
+                description: assn.description,
+                instructions: assn.description || '',
+                due_date: assn.dueDate ? new Date(assn.dueDate).toISOString() : null,
+                max_points: assn.maxPoints || 100,
+                allowed_file_types: [],
+                max_file_size: 10,
+                is_required: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            if (assnError) {
+              console.error('Assignment upsert error:', assnError, assn);
+              throw assnError;
+            }
+          }
+        }
+      }
+
       showToast(`Course created successfully${courseData.is_published ? ' and published!' : ' (saved as draft).'}`, 'success');
     } catch (error) {
+      console.error('Error creating course:', error);
       showToast('Error creating course. Please try again.', 'error');
     } finally {
       setIsLoading(false);
@@ -542,7 +624,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
 
   const addAssignment = (moduleId: string) => {
     const newAssignment = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: '',
       description: '',
       dueDate: '',
@@ -656,7 +738,7 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                       setCourseData({
                         ...courseData,
                         instructor_id: selected?.id || '',
-                        instructor: selected ? `${selected.firstName} ${selected.lastName}` : '',
+                        instructor: selected ? `${selected.first_name} ${selected.last_name}` : '',
                       });
                     }}
                     className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -951,10 +1033,10 @@ export function CreateCourse({ onSave, onCancel }: CreateCourseProps) {
                                 onClick={() => setVideoModal({ open: true, moduleId: module.id, lessonId: lesson.id })}
                                 className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-medium hover:bg-blue-200"
                               >
-                                {lesson.videoUrl ? 'Replace Video' : 'Upload Video'}
+                                {lesson.video_url ? 'Replace Video' : 'Upload Video'}
                               </button>
-                              {lesson.videoUrl && (
-                                <video src={lesson.videoUrl} controls className="w-full mt-2 rounded" />
+                              {lesson.video_url && (
+                                <video src={lesson.video_url} controls className="w-full mt-2 rounded" />
                               )}
                             </div>
                           )}

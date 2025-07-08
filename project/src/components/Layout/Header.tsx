@@ -13,17 +13,17 @@ export function Header() {
 
   // Calculate unread notifications for current user
   const unreadCount = notifications.filter(notification =>
-    notification.recipients.some(recipient => 
-      recipient.userId === user?.id && !recipient.isRead
-    )
+        notification.recipients.some(recipient => 
+          recipient.userId === user?.id && !recipient.isRead
+        )
   ).length;
 
   // Get recent notifications for dropdown
   const recentNotifications = notifications
-    .filter(notification =>
-      notification.recipients.some(recipient => recipient.userId === user?.id)
-    )
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .filter(notification =>
+          notification.recipients.some(recipient => recipient.userId === user?.id)
+        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
   const handleLogoutClick = () => {
@@ -40,7 +40,7 @@ export function Header() {
   };
 
   const handleNotificationClick = () => {
-    setShowNotificationDropdown(!showNotificationDropdown);
+      setShowNotificationDropdown(!showNotificationDropdown);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -122,7 +122,7 @@ export function Header() {
               </div>
             )}
             {/* Enhanced Notification Bell for All Users */}
-            <div className="relative notification-dropdown">
+              <div className="relative notification-dropdown">
                 <button 
                   onClick={handleNotificationClick}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors relative"

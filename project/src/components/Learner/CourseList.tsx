@@ -272,11 +272,11 @@ export function CourseList({}: CourseListProps) {
                     <div className="flex gap-2 mt-auto">
                       {activeTab === 'active' ? (
                         <>
-                          <Link to={`/course/${course.slug}`} className="flex-1">
-                            <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                              <Play className="w-5 h-5" /> Continue
-                            </button>
-                          </Link>
+                        <Link to={`/course/${course.slug}`} className="flex-1">
+                          <button className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                            <Play className="w-5 h-5" /> Continue
+                          </button>
+                        </Link>
                           <button
                             onClick={() => handleViewDetails(course)}
                             className="flex-1 bg-gray-100 text-blue-700 px-6 py-2 rounded-lg font-medium hover:bg-blue-100 border border-blue-200 transition-colors flex items-center justify-center gap-2"

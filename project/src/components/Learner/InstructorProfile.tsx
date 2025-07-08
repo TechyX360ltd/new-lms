@@ -151,9 +151,9 @@ export function InstructorProfile({
       sm: 'w-4 h-4',
       md: 'w-5 h-5',
       lg: 'w-6 h-6'
-    };
+  };
 
-    return (
+  return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
@@ -191,10 +191,10 @@ export function InstructorProfile({
                 />
               </div>
               <span className="text-sm text-gray-600 w-12">{count}</span>
-            </div>
+        </div>
           );
         })}
-      </div>
+        </div>
     );
   };
 
@@ -210,12 +210,12 @@ export function InstructorProfile({
                 src={instructorAvatar}
                 alt={instructorName}
                 className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
+                  />
+                ) : (
               <Users className="w-10 h-10 text-gray-500" />
-            )}
-          </div>
-
+                )}
+              </div>
+              
           {/* Info */}
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">{instructorName}</h2>
@@ -242,7 +242,7 @@ export function InstructorProfile({
                   <span className="text-sm text-gray-600">
                     {instructorStats.average_rating.toFixed(1)} ({instructorStats.total_ratings} ratings)
                   </span>
-                </div>
+            </div>
               )}
             </div>
           </div>
@@ -267,7 +267,7 @@ export function InstructorProfile({
             </div>
 
             {/* Rating Distribution */}
-            <div>
+        <div>
               <h4 className="font-medium text-gray-900 mb-3">Rating Distribution</h4>
               {renderRatingDistribution()}
             </div>
@@ -383,23 +383,23 @@ export function InstructorProfile({
                     </div>
                   </div>
                 </div>
-              </div>
+        </div>
             ))}
 
             {/* Show More/Less Button */}
             {instructorRatings.length > 5 && (
               <div className="text-center pt-4">
-                <button
+            <button
                   onClick={() => setShowAllReviews(!showAllReviews)}
                   className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                >
+            >
                   {showAllReviews ? 'Show Less' : `Show All ${instructorRatings.length} Reviews`}
-                </button>
+            </button>
               </div>
             )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
     </div>
   );
 } 

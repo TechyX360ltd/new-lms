@@ -26,43 +26,10 @@ import {
   Eye,
   RefreshCw
 } from 'lucide-react';
-import { Course } from '../../types';
+import { Course, Module, Lesson, Assignment } from '../../types';
 import { useCategories, useUsers } from '../../hooks/useData';
 import { useToast } from '../Auth/ToastContext';
 import { supabase } from '../../lib/supabase';
-
-interface Module {
-  id: string;
-  title: string;
-  description: string;
-  sort_order: number;
-  lessons: Lesson[];
-  assignments?: Assignment[];
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  content: string;
-  contentType: 'text' | 'video' | 'document' | 'image';
-  attachments: File[];
-  duration: number;
-  sort_order: number;
-}
-
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  instructions?: string;
-  due_date?: string;
-  max_points?: number;
-  allowed_file_types?: string[];
-  max_file_size?: number;
-  is_required?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
 
 interface EditCourseProps {
   course: Course;
@@ -82,6 +49,11 @@ function slugify(text: string) {
     .replace(/--+/g, '-')            // Replace multiple - with single -
     .replace(/^-+/, '')              // Trim - from start of text
     .replace(/-+$/, '');             // Trim - from end of text
+}
+
+// Helper to check if a string is a valid UUID
+function isValidUUID(id: string | undefined | null): boolean {
+  return !!id && /^[0-9a-fA-F-]{36}$/.test(id);
 }
 
 export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
@@ -133,7 +105,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
   // Load existing course data and content from backend when component mounts or course changes
   useEffect(() => {
     async function fetchCourseContent() {
-      if (!course.id) return;
+      if (!isValidUUID(course.id)) return;
       // Fetch modules, lessons, assignments in parallel
       const [modulesRes, lessonsRes, assignmentsRes] = await Promise.all([
         supabase.from('modules').select('*').eq('course_id', course.id).order('order', { ascending: true }),
@@ -150,67 +122,69 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
       const assignments = assignmentsRes.data || [];
       let structuredModules = [];
       if (modules.length > 0) {
-        structuredModules = modules.map(mod => ({
+        structuredModules = modules.map((mod: any, idx: number) => ({
           ...mod,
-          lessons: lessons.filter(les => les.module_id === mod.id).map(les => ({ ...les, attachments: [] })),
-          assignments: assignments.filter(a => a.module_id === mod.id)
+          order: mod.order ?? mod.sort_order ?? (idx + 1),
+          lessons: lessons.filter((les: any) => les.module_id === mod.id).map((les: any) => ({ ...les, attachments: [] })),
+          assignments: assignments.filter((a: any) => a.module_id === mod.id)
         }));
       } else {
         // No modules: treat all lessons as a single module
+        const defaultModuleId = crypto.randomUUID();
         structuredModules = [{
-          id: 'default',
+          id: defaultModuleId,
           title: 'Lessons',
           description: '',
-          lessons: lessons.map(les => ({ ...les, attachments: [] })),
-          assignments: assignments.filter(a => !a.module_id)
+          order: 1,
+          lessons: lessons.map((les: any) => ({ ...les, attachments: [] })),
+          assignments: assignments.filter((a: any) => !a.module_id)
         }];
+        setExpandedModules(new Set([defaultModuleId]));
       }
       setModules(structuredModules);
-      setExpandedModules(new Set(structuredModules.map((m: any) => m.id)));
     }
     function loadFromProp() {
       // fallback: old prop-based logic
-      if ((course as any).lessons && (course as any).lessons.length > 0) {
-        if ((course as any).modules && (course as any).modules.length > 0) {
-          const existingModules = (course as any).modules.map((module: any) => ({
-            ...module,
-            lessons: module.lessons.map((lesson: any) => ({
-              ...lesson,
+    if ((course as any).lessons && (course as any).lessons.length > 0) {
+      if ((course as any).modules && (course as any).modules.length > 0) {
+        const existingModules = (course as any).modules.map((module: any) => ({
+          ...module,
+          lessons: module.lessons.map((lesson: any) => ({
+            ...lesson,
               attachments: [] as File[],
             })),
             assignments: module.assignments || [],
-          }));
-          setModules(existingModules);
+        }));
+        setModules(existingModules);
           setExpandedModules(new Set(existingModules.map((m: any) => m.id)));
-        } else {
-          const defaultModule: Module = {
-            id: 'default-module',
-            title: 'Course Content',
-            description: 'Main course content',
-            sort_order: 1,
-            lessons: ((course as any).lessons || []).map((lesson: any, index: number) => ({
-              id: lesson.id,
-              title: lesson.title,
-              content: lesson.content,
-              contentType: 'text' as const,
-              attachments: [] as File[],
-              duration: lesson.duration || 15,
-              sort_order: index + 1,
+      } else {
+        const defaultModule: Module = {
+            id: crypto.randomUUID(),
+          title: 'Course Content',
+          description: 'Main course content',
+          sort_order: 1,
+          lessons: ((course as any).lessons || []).map((lesson: any, index: number) => ({
+            id: lesson.id,
+            title: lesson.title,
+            content: lesson.content,
+            attachments: [] as File[],
+              duration: lesson.duration ?? 15,
+            sort_order: index + 1,
             })),
             assignments: [],
-          };
-          setModules([defaultModule]);
-          setExpandedModules(new Set(['default-module']));
-        }
+        };
+        setModules([defaultModule]);
+        setExpandedModules(new Set(['default-module']));
       }
     }
+    }
     fetchCourseContent();
-  }, [course]);
+  }, [course.id]);
 
   // Filter instructors for dropdown
   const instructors = users
     .filter(u => u.role === 'instructor' && (
-      (u.firstName + ' ' + u.lastName).toLowerCase().includes(instructorSearch.toLowerCase()) ||
+      (u.first_name + ' ' + u.last_name).toLowerCase().includes(instructorSearch.toLowerCase()) ||
       u.email.toLowerCase().includes(instructorSearch.toLowerCase())
     ));
 
@@ -330,7 +304,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
 
   const addModule = () => {
     const newModule: Module = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: '',
       description: '',
       sort_order: modules.length + 1,
@@ -356,7 +330,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
   const addLesson = (moduleId: string) => {
     const targetModule = modules.find(m => m.id === moduleId);
     const newLesson: Lesson = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: '',
       content: '',
       contentType: 'text',
@@ -459,6 +433,10 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
       const courseId = course.id;
       // Upsert modules
       for (const mod of modules) {
+        if (!isValidUUID(mod.id) || !isValidUUID(courseId)) {
+          console.error('Invalid UUID for module or course:', mod.id, courseId);
+          continue;
+        }
         const { error: modError } = await supabase
           .from('modules')
           .upsert({
@@ -466,7 +444,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
             course_id: courseId,
             title: mod.title,
             description: mod.description,
-            order: mod.sort_order,
+            order: mod.sort_order || mod.order || 1,
             updated_at: new Date().toISOString(),
           });
         if (modError) {
@@ -475,6 +453,10 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
         }
         // Upsert lessons for this module
         for (const les of mod.lessons) {
+          if (!isValidUUID(les.id) || !isValidUUID(mod.id) || !isValidUUID(courseId)) {
+            console.error('Invalid UUID for lesson, module, or course:', les.id, mod.id, courseId);
+            continue;
+          }
           console.log('Saving lesson:', les);
           const { error: lesError } = await supabase
             .from('lessons')
@@ -497,6 +479,10 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
         // Upsert assignments for this module (if present)
         if (mod.assignments && Array.isArray(mod.assignments)) {
           for (const assn of mod.assignments) {
+            if (!isValidUUID(assn.id) || !isValidUUID(mod.id) || !isValidUUID(courseId)) {
+              console.error('Invalid UUID for assignment, module, or course:', assn.id, mod.id, courseId);
+              continue;
+            }
             console.log('Saving assignment:', assn);
             const { error: assnError } = await supabase
               .from('assignments')
@@ -591,7 +577,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
                   setCourseData({
                     ...courseData,
                     instructor_id: selected?.id || '',
-                    instructor: selected ? `${selected.firstName} ${selected.lastName}` : '',
+                    instructor: selected ? `${selected.first_name} ${selected.last_name}` : '',
                   });
                 }}
                 className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -600,7 +586,7 @@ export function EditCourse({ course, onSave, onCancel }: EditCourseProps) {
               >
                 <option value="">{usersLoading ? 'Loading instructors...' : 'Select instructor'}</option>
                 {instructors.map(i => (
-                  <option key={i.id} value={i.id}>{i.firstName} {i.lastName} ({i.email})</option>
+                  <option key={i.id} value={i.id}>{i.first_name} {i.last_name} ({i.email})</option>
                 ))}
               </select>
             </div>

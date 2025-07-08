@@ -29,8 +29,13 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient<Database>(supabaseUrl, supabaseAnonKey)
   : createMockSupabaseClient();
 
+export function isValidUUID(id: string | undefined | null): boolean {
+  return !!id && /^[0-9a-fA-F-]{36}$/.test(id);
+}
+
 // Get a user's note for a lesson
 export async function getLessonNote(userId: string, lessonId: string) {
+  if (!isValidUUID(lessonId)) return null;
   const { data, error } = await supabase
     .from('lesson_notes')
     .select('*')
@@ -43,6 +48,7 @@ export async function getLessonNote(userId: string, lessonId: string) {
 
 // Upsert (insert or update) a user's note for a lesson
 export async function upsertLessonNote(userId: string, lessonId: string, content: string) {
+  if (!isValidUUID(lessonId)) throw new Error('Invalid lessonId');
   const { data, error } = await supabase
     .from('lesson_notes')
     .upsert([{ user_id: userId, lesson_id: lessonId, content }], { onConflict: ['user_id', 'lesson_id'] });
@@ -51,6 +57,7 @@ export async function upsertLessonNote(userId: string, lessonId: string, content
 
 // Get all discussion comments for a lesson
 export async function getLessonDiscussions(lessonId: string) {
+  if (!isValidUUID(lessonId)) return [];
   const { data, error } = await supabase
     .from('lesson_discussions')
     .select('*')
@@ -61,6 +68,7 @@ export async function getLessonDiscussions(lessonId: string) {
 
 // Add a new discussion comment (or reply) for a lesson
 export async function addLessonDiscussion(userId: string, lessonId: string, content: string, parentId?: string) {
+  if (!isValidUUID(lessonId)) throw new Error('Invalid lessonId');
   const { data, error } = await supabase
     .from('lesson_discussions')
     .insert([{ user_id: userId, lesson_id: lessonId, content, parent_id: parentId || null }]);
