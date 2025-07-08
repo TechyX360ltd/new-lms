@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Users, Star, BookOpen, Coins, CheckCircle, Banknote } from 'lucide-react';
+import { useCourseStructure } from '../../hooks/useData';
 
 interface CourseDetailsModalProps {
   course: any;
@@ -8,6 +9,8 @@ interface CourseDetailsModalProps {
 
 const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({ course, onClose }) => {
   if (!course) return null;
+  // Fetch real modules/lessons from backend
+  const { modules, loading, error } = useCourseStructure(course.id);
 
   return (
     <div
@@ -92,20 +95,28 @@ const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({ course, onClose
           <div className="mt-4">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Course Modules</h3>
             <div className="space-y-2">
-              {(course.modules && course.modules.length > 0 ? course.modules : [{ title: 'No modules found', lessons: [] }]).map((mod: any, idx: number) => (
-                <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                  <div className="font-semibold text-blue-700 mb-1">{mod.title}</div>
-                  <div className="text-xs text-gray-500">{mod.lessons?.length || 0} lessons</div>
-                  {mod.lessons && mod.lessons.length > 0 && (
-                    <ul className="mt-1 ml-4 list-disc text-xs text-gray-600">
-                      {mod.lessons.slice(0, 3).map((lesson: any, lidx: number) => (
-                        <li key={lidx}>{lesson.title}</li>
-                      ))}
-                      {mod.lessons.length > 3 && <li>...and more</li>}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {loading ? (
+                <div className="text-gray-400">Loading modules...</div>
+              ) : error ? (
+                <div className="text-red-600">{error}</div>
+              ) : modules.length === 0 ? (
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-gray-500">No modules found</div>
+              ) : (
+                modules.map((mod: any, idx: number) => (
+                  <div key={mod.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <div className="font-semibold text-blue-700 mb-1">{mod.title}</div>
+                    <div className="text-xs text-gray-500">{mod.lessons?.length || 0} lessons</div>
+                    {mod.lessons && mod.lessons.length > 0 && (
+                      <ul className="mt-1 ml-4 list-disc text-xs text-gray-600">
+                        {mod.lessons.slice(0, 3).map((lesson: any, lidx: number) => (
+                          <li key={lesson.id}>{lesson.title}</li>
+                        ))}
+                        {mod.lessons.length > 3 && <li>...and more</li>}
+                      </ul>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
           {/* Reviews Placeholder */}

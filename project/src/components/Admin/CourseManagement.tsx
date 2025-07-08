@@ -23,11 +23,16 @@ export function CourseManagement() {
 
   const handleCreateCourse = async (courseData: any) => {
     try {
-      console.log('Creating course:', courseData);
-      const result = await addCourse(courseData);
+      // If modules are present in the form, pass them to addCourse
+      const payload = { ...courseData };
+      if (courseData.modules) {
+        payload.modules = courseData.modules;
+      }
+      console.log('Creating course (with modules):', payload);
+      const result = await addCourse(payload);
       if (result && result.error) {
-        console.error('Supabase error:', result.error);
-        alert('Error creating course: ' + (result.error.message || JSON.stringify(result.error)));
+        console.error('Supabase error(s):', result.error);
+        alert('Error creating course: ' + (Array.isArray(result.error) ? result.error.map((e: any) => e.error?.message || e.error).join('\n') : (result.error.message || JSON.stringify(result.error))));
       }
       setShowCreateCourse(false);
     } catch (error: any) {

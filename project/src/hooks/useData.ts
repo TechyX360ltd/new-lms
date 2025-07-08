@@ -633,17 +633,89 @@ export function useCourses() {
     fetchCourses();
   }, []);
 
-  const addCourse = async (newCourse: Partial<Course>) => {
-    const { data, error } = await supabase
-      .from('courses')
-      .insert([newCourse])
-      .select();
-    console.log('addCourse result:', { data, error });
-    if (!error && data && Array.isArray(data) && data[0]?.id) {
-      setCourses(prev => [data[0], ...prev]);
-      return { data, error };
-    } else {
-      throw new Error('Course creation failed - no course ID returned');
+  const addCourse = async (newCourse: Partial<Course> & { modules?: Module[] }) => {
+    let createdCourseId: string | undefined;
+    let errors: any[] = [];
+    try {
+      // Insert course
+      const { data, error } = await supabase
+        .from('courses')
+        .insert([newCourse])
+        .select();
+      console.log('addCourse result:', { data, error });
+      if (error) {
+        console.error('Error inserting course:', error);
+        errors.push({ step: 'insert_course', error });
+        return { data, error };
+      }
+      if (!data || !Array.isArray(data) || !data[0]?.id) {
+        const err = new Error('Course creation failed - no course ID returned');
+        console.error(err);
+        errors.push({ step: 'no_course_id', error: err });
+        return { data, error: err };
+      }
+      createdCourseId = data[0].id;
+      // Save modules and lessons if provided
+      if (newCourse.modules && Array.isArray(newCourse.modules)) {
+        for (const mod of newCourse.modules) {
+          try {
+            if (!mod.id || !createdCourseId) throw new Error('Invalid UUID for module or course');
+            const { error: modError } = await supabase
+              .from('modules')
+              .upsert({
+                id: mod.id,
+                course_id: createdCourseId,
+                title: mod.title,
+                description: mod.description,
+                order: mod.sort_order,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            if (modError) {
+              console.error('Module upsert error:', modError, mod);
+              errors.push({ step: 'upsert_module', module: mod, error: modError });
+              continue;
+            }
+            // Save lessons for this module
+            if (mod.lessons && Array.isArray(mod.lessons)) {
+              for (const les of mod.lessons) {
+                try {
+                  if (!les.id || !mod.id || !createdCourseId) throw new Error('Invalid UUID for lesson, module, or course');
+                  const { error: lesError } = await supabase
+                    .from('lessons')
+                    .upsert({
+                      id: les.id,
+                      course_id: createdCourseId,
+                      module_id: mod.id,
+                      title: les.title,
+                      content: les.content,
+                      video_url: les.video_url || null,
+                      duration: les.duration,
+                      order: les.sort_order,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    });
+                  if (lesError) {
+                    console.error('Lesson upsert error:', lesError, les);
+                    errors.push({ step: 'upsert_lesson', lesson: les, error: lesError });
+                    continue;
+                  }
+                } catch (lessonErr) {
+                  console.error('Lesson save error:', lessonErr);
+                  errors.push({ step: 'save_lesson', lesson: les, error: lessonErr });
+                }
+              }
+            }
+          } catch (modErr) {
+            console.error('Module save error:', modErr);
+            errors.push({ step: 'save_module', module: mod, error: modErr });
+          }
+        }
+      }
+      return { data, error: errors.length > 0 ? errors : null };
+    } catch (err) {
+      console.error('Error in addCourse:', err);
+      return { data: null, error: err };
     }
   };
 

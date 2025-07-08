@@ -137,6 +137,18 @@ export function Sidebar({}: SidebarProps) {
         </div>
 
         <nav className="p-4">
+          {/* Back to My Courses link for learners */}
+          {user?.role !== 'admin' && user?.role !== 'instructor' && (
+            <div className="mb-4">
+              <button
+                onClick={() => handleMenuItemClick('/dashboard/courses')}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition-all duration-200 mb-2"
+              >
+                <BookOpen className="w-5 h-5" />
+                Back to My Courses
+              </button>
+            </div>
+          )}
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;

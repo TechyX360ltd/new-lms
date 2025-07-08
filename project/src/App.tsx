@@ -44,6 +44,8 @@ import { RatingTest } from './components/Admin/RatingTest';
 import { AdminSidebar } from './components/Admin/Sidebar';
 import ReferralsPage from './pages/ReferralsPage';
 import AdminReferralsPage from './pages/AdminReferralsPage';
+import { CertificateVerificationPage } from './pages/CertificateVerificationPage';
+import CertificatePage from './pages/CertificatePage';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -182,8 +184,14 @@ function AppContent() {
           }
         />
 
+        {/* Certificate Verification Route (public) */}
+        <Route path="/verification" element={<CertificateVerificationPage />} />
+
         {/* Reset Password Route */}
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        {/* Certificate Page Route (public, sharable) */}
+        <Route path="/certificate/:certificateId" element={<CertificatePage />} />
 
         {/* Instructor Routes */}
         <Route
